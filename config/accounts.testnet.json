@@ -1,0 +1,14 @@
+{
+  "network": "arc:testnet",
+  "chainId": 5042002,
+  "accounts": {
+    "Arcittance-deployer": "0x6C105D0A4ab3EF22592F34eDFC86BD3648380eFd",
+    "Arcittance-keeper": "0xA00805f9383Ac69Fc03236581a2fb0433CD394Ec",
+    "Arcittance-treasury": "0xA00805f9383Ac69Fc03236581a2fb0433CD394Ec",
+    "Arcittance-facilitator": "0xBEF6951620cCaBCD66278b44807961f2B3cE544D",
+    "Arcittance-employer-demo": "0xBB8A51dff087F488331991a34dD37DAc72f49E9f",
+    "Arcittance-remit-sender-demo": "0x58D652A3655C1c57715ADb798aA7e1C417e27503",
+    "Arcittance-recipient-demo": "0x80568CF6687392bD74f15b1C600029499D97Ff40"
+  },
+  "provisionedAt": "2026-08-07T06:26:05.526Z"
+}
