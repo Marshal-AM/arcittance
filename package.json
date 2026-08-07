@@ -1,0 +1,46 @@
+{
+  "name": "Arcittance",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:gas": "REPORT_GAS=true hardhat test",
+    "check:forbidden-refs": "npx ts-node scripts/check-forbidden-refs.ts",
+    "provision:accounts": "npx ts-node scripts/provision-accounts.ts",
+    "arc:smoke": "npx ts-node scripts/arc-smoke.ts",
+    "deploy:arc": "hardhat run scripts/deploy/arc/01_deploy_contracts.ts --network arcTestnet",
+    "test:integration": "hardhat test test/integration/arc-payroll-usdc.test.ts test/integration/arc-cctp-payroll.test.ts test/integration/arc-gateway-unified.test.ts test/integration/arc-remittance-receipt.test.ts test/integration/arc-batch-marketplace.test.ts test/integration/arc-stablefx-remittance.test.ts --network arcTestnet",
+    "test:stablefx-quote": "npx ts-node scripts/test-stablefx-quote.ts",
+    "configure:cross-chain": "npx ts-node scripts/configure-cross-chain-router.ts",
+    "test:cross-chain-cctp": "npx ts-node scripts/test-cross-chain-cctp.ts",
+    "test:cctp-bridge": "npx ts-node scripts/test-cctp-bridge.ts",
+    "provision:remit-user": "npx ts-node scripts/provision-remit-user.ts",
+    "test:gateway-unified": "npx ts-node scripts/test-gateway-unified.ts",
+    "configure:circle-wallets": "npx ts-node scripts/configure-circle-wallets.ts",
+    "test:circle-keeper": "npx ts-node scripts/test-circle-keeper.ts",
+    "test:circle": "npx jest --config circle/jest.config.cjs",
+    "test:remittance": "npx ts-node scripts/test-remittance.ts",
+    "test:mint-bank-rail": "npx ts-node scripts/test-mint-bank-rail.ts",
+    "test:mint-wire-variants": "npx ts-node scripts/test-mint-wire-variants.ts",
+    "test:bank-mock-fund": "npx ts-node scripts/test-bank-mock-fund.ts",
+    "verify:gas-sponsorship": "npx ts-node scripts/verify-gas-sponsorship.ts",
+    "verify:live": "npx ts-node scripts/verify-live.ts",
+    "db:migrate": "npx ts-node scripts/db-migrate.ts",
+    "verify": "hardhat verify --network arcTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.0.0",
+    "hardhat": "^2.22.0",
+    "hardhat-gas-reporter": "^1.0.9",
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "viem": "^2.21.0"
+  }
+}

@@ -1,0 +1,110 @@
+# ─── Node / npm ─────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Environment / secrets ──────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# .env.example is safe to commit — contains only key names, no values
+!.env.example
+frontend/.env.local
+frontend/.env.*.local
+!frontend/.env.example
+
+# ─── Hardhat ────────────────────────────────────────────────────────────────
+artifacts/
+cache/
+typechain-types/
+dist/
+
+# ─── Rust / Cargo (removed — rust-contracts deleted in Arc migration) ────────
+
+# ─── Circle package secrets ──────────────────────────────────────────────────
+circle/.env
+
+# ─── Next.js ────────────────────────────────────────────────────────────────
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel/
+
+# ─── TypeScript build info ───────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Jest / coverage ────────────────────────────────────────────────────────
+coverage/
+frontend/coverage/
+test/results/gas-report.txt
+# test/results/onchain-test-results.md is kept — it records AGT-04 on-chain results
+
+# ─── Deployment artefacts ────────────────────────────────────────────────────
+deployments/arc/deploy.log
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Editor / IDE ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ─── Vercel ──────────────────────────────────────────────────────────────────
+.vercel
+
+# ─── Cypress test artifacts ──────────────────────────────────────────────────
+frontend/cypress/screenshots/
+frontend/cypress/videos/
+
+# Agent scratch notes (migration docs in docs/ are tracked)
+AGENTS.md
+BLOCKERS.md
+UNNECESSARY_FILES.txt
+prompts/
+out.txt
+out1.txt
+run3.txt
+run4.txt
+run5.txt
+frontend/out1.txt
+frontend/out2.txt
+frontend/out3.txt
+frontend/output.txt
+frontend/output1.txt
+frontend/output2.txt
+
+# ─── Test results (generated artifacts) ──────────────────────────────────────
+test/results/
+
+# ─── Deployment keys ─────────────────────────────────────────────────────────
+deployments/arc/.deployer_*
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+*.pid
+*.pid.lock
+*.seed
+
+# ─── Unrelated local project (not part of arcittance) ────────────────────────
+arcaid/
+
+# Internal docs (kept locally, not tracked)
+docs/
