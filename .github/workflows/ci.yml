@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contracts
+        run: npm run compile
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Forbidden refs check
+        run: npm run check:forbidden-refs
+
+  arc-smoke:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Provision accounts
+        env:
+          ARC_NETWORK: arc:testnet
+          DEPLOYER_PRIVATE_KEY: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+          TREASURY_PRIVATE_KEY: ${{ secrets.TREASURY_PRIVATE_KEY }}
+          FACILITATOR_PRIVATE_KEY: ${{ secrets.FACILITATOR_PRIVATE_KEY }}
+          EMPLOYER_DEMO_PRIVATE_KEY: ${{ secrets.EMPLOYER_DEMO_PRIVATE_KEY }}
+          REMIT_SENDER_DEMO_PRIVATE_KEY: ${{ secrets.REMIT_SENDER_DEMO_PRIVATE_KEY }}
+          RECIPIENT_DEMO_PRIVATE_KEY: ${{ secrets.RECIPIENT_DEMO_PRIVATE_KEY }}
+        run: npm run provision:accounts
+
+      - name: Arc smoke test
+        env:
+          ARC_NETWORK: arc:testnet
+          ARC_RPC_URL: ${{ secrets.ARC_RPC_URL }}
+          CIRCLE_API_KEY: ${{ secrets.CIRCLE_API_KEY }}
+          CIRCLE_WALLETS_ENTITY_SECRET: ${{ secrets.CIRCLE_WALLETS_ENTITY_SECRET }}
+          CIRCLE_GATEWAY_API_KEY: ${{ secrets.CIRCLE_GATEWAY_API_KEY }}
+          CIRCLE_CCTP_BRIDGEKIT_CONFIG: ${{ secrets.CIRCLE_CCTP_BRIDGEKIT_CONFIG }}
+        run: npm run arc:smoke
