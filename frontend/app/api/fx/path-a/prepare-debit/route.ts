@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { loadServerEnv } from "@/lib/server/env";
 
 /**
- * Path A prep — create Circle challenge to move USDC from embedded wallet → facilitator EOA
- * so StableFX can settle (EOA signs Permit2). After FX, EURC is sent back to the user.
+ * Path A prep — create Circle challenge to move USDC or EURC from embedded wallet → facilitator EOA
+ * so StableFX can settle (EOA signs Permit2). After FX, the output token is sent back to the user.
  */
 export async function POST(req: Request) {
   try {
@@ -21,9 +21,11 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (body.currency && body.currency !== "USDC") {
+
+    const currency = body.currency ?? "USDC";
+    if (currency !== "USDC" && currency !== "EURC") {
       return NextResponse.json(
-        { error: "Path A debit currently supports USDC only (StableFX from-side)" },
+        { error: "currency must be USDC or EURC" },
         { status: 400 }
       );
     }
@@ -39,13 +41,14 @@ export async function POST(req: Request) {
       walletId: body.walletId,
       destinationAddress: facilitatorAddress,
       amountUsdc: body.amount,
+      currency,
     });
 
     return NextResponse.json({
       challengeId,
       facilitatorAddress,
       amount: body.amount,
-      currency: "USDC",
+      currency,
     });
   } catch (err: unknown) {
     return NextResponse.json(

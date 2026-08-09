@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadServerEnv } from "@/lib/server/env";
 
-/** Wait until Path A USDC debit (user → facilitator) is COMPLETE. */
+/** Wait until Path A debit (user → facilitator, USDC or EURC) is COMPLETE. */
 export async function POST(req: Request) {
   try {
     loadServerEnv();

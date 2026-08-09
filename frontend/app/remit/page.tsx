@@ -168,17 +168,16 @@ export default function RemitPage() {
     setTxStatus({ status: "pending", detail: "Settling StableFX…" });
 
     try {
-      // Path A: StableFX signs with facilitator EOA — move USDC from your wallet first,
-      // then after swap send EURC back so Fund panel balances update.
+      // Path A: StableFX signs with facilitator EOA — debit from-currency from wallet first,
+      // then after swap send to-currency back so Fund panel balances update.
       if (fundingPath === "A") {
-        if (fromCurrency !== "USDC") {
-          throw new Error(
-            "Path A convert currently supports USDC → EURC only (debit uses USDC wallet transfer)"
-          );
-        }
+        const debitCurrency = fxQuote.fromCurrency;
         setFxProgress((p) => [
           ...p,
-          { stage: "path_a_debit", message: "Preparing USDC transfer to facilitator…" },
+          {
+            stage: "path_a_debit",
+            message: `Preparing ${debitCurrency} transfer to facilitator…`,
+          },
         ]);
         const prepRes = await fetch("/api/fx/path-a/prepare-debit", {
           method: "POST",
@@ -187,6 +186,7 @@ export default function RemitPage() {
             userToken: wallet.userToken,
             walletId: wallet.walletId,
             amount: fxQuote.fromAmount,
+            currency: debitCurrency,
           }),
         });
         const prep = await prepRes.json();
@@ -196,10 +196,10 @@ export default function RemitPage() {
           ...p,
           {
             stage: "path_a_debit",
-            message: "Approve Circle challenge to send USDC to facilitator…",
+            message: `Approve Circle challenge to send ${debitCurrency} to facilitator…`,
           },
         ]);
-      setTxStatus({
+        setTxStatus({
           status: "pending",
           detail: "Approve wallet challenge to fund StableFX…",
         });
@@ -211,7 +211,10 @@ export default function RemitPage() {
 
         setFxProgress((p) => [
           ...p,
-          { stage: "path_a_debit", message: "Waiting for USDC debit confirmation…" },
+          {
+            stage: "path_a_debit",
+            message: `Waiting for ${debitCurrency} debit confirmation…`,
+          },
         ]);
         const waitRes = await fetch("/api/fx/path-a/wait-debit", {
           method: "POST",
@@ -228,7 +231,7 @@ export default function RemitPage() {
           ...p,
           {
             stage: "path_a_debit",
-            message: `USDC received by facilitator${waitData.txHash ? ` · ${String(waitData.txHash).slice(0, 12)}…` : ""}`,
+            message: `${debitCurrency} received by facilitator${waitData.txHash ? ` · ${String(waitData.txHash).slice(0, 12)}…` : ""}`,
           },
         ]);
       }
@@ -1001,8 +1004,9 @@ export default function RemitPage() {
               style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
             >
               <p className="text-xs text-[var(--text-secondary)]">
-                Optional StableFX. Path A moves USDC from your wallet → facilitator → swap → EURC
-                back to you (approve the Circle challenge when prompted).
+                Optional StableFX. Path A debits your chosen currency to the facilitator, swaps via
+                StableFX, then sends the output token back to your wallet (approve the Circle
+                challenge when prompted).
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
