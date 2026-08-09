@@ -15,8 +15,8 @@ Arcittance is designed for judges, developers, and the Circle team who want to s
 | Link | URL |
 |------|-----|
 | **Live App** | [arcittance.vercel.app](https://arcittance.vercel.app/) |
-| **Demo Video** | TBD |
-| **Pitch Deck** | TBD |
+| **Demo Video** | [youtu.be/f2223AXZxWY](https://youtu.be/f2223AXZxWY) |
+| **Pitch Deck** | [canva.link/5tgq975r7s69kbf](https://canva.link/5tgq975r7s69kbf) |
 
 ---
 
