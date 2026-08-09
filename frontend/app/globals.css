@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Landing-aligned light theme */
+  --dot-pink:       #111111;
+  --dot-pink-light: #333333;
+  --dot-pink-dim:   rgba(0, 0, 0, 0.04);
+  --bg-base:        #F5F4F0;
+  --bg-surface:     rgba(245, 244, 240, 0.85);
+  --bg-card:        #ffffff;
+  --bg-card-hover:  #fafaf8;
+  --bg-input:       #ffffff;
+  --border:         rgba(0, 0, 0, 0.07);
+  --border-subtle:  rgba(0, 0, 0, 0.04);
+  --text-primary:   #111111;
+  --text-secondary: rgba(0, 0, 0, 0.45);
+  --text-muted:     rgba(0, 0, 0, 0.35);
+  --success:        #16a34a;
+  --warning:        #d97706;
+  --error:          #dc2626;
+  --info:           #2563eb;
+  --moonbeam:       #0d9488;
+  --astar:          #2563eb;
+  --hydration:      #0284c7;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-ibm-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-pixel {
+  font-family: var(--font-courier-prime), "Courier Prime", monospace;
+}
+
+.font-sans {
+  font-family: var(--font-ibm-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
+}
+
+/* Product page titles — match landing light headline weight */
+.heading-gradient {
+  color: #111111;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  background: none;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+}
+
+/* Shared card / control language (landing bento) */
+.app-card {
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.app-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--dot-pink-dim);
+}
+
+.app-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #111111;
+  color: #ffffff;
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  transition: background-color 0.2s ease;
+}
+.app-btn-primary:hover { background: #333333; }
+.app-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.app-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+.app-btn-ghost:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  color: #111111;
+  background: var(--dot-pink-dim);
+}
+
+.app-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.app-input:focus { border-color: rgba(0, 0, 0, 0.25); }
+.app-input::placeholder { color: rgba(0, 0, 0, 0.25); }
+
+/* Landing marquee */
+@keyframes marqueeLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-33.333%); }
+}
+@keyframes marqueeRight {
+  from { transform: translateX(-33.333%); }
+  to   { transform: translateX(0); }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
+
+/* Focus ring */
+:focus-visible { outline: 2px solid rgba(0, 0, 0, 0.35); outline-offset: 2px; }
+
+/* Selection */
+::selection { background: rgba(0, 0, 0, 0.08); color: var(--text-primary); }
