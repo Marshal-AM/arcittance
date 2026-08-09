@@ -8,8 +8,8 @@ describe("Navigation and page rendering", () => {
   it("loads the dashboard page", () => {
     cy.url().should("eq", Cypress.config().baseUrl + "/app");
     cy.contains("Programmable").should("be.visible");
-    cy.contains("Payments").should("be.visible");
-    cy.contains("on Polkadot Hub").should("be.visible");
+    cy.contains("payments").should("be.visible");
+    cy.contains("Arc Testnet").should("be.visible");
   });
 
   it("shows all 4 stat cards on dashboard", () => {
@@ -19,16 +19,17 @@ describe("Navigation and page rendering", () => {
     cy.contains("Plans").should("be.visible");
   });
 
-  it("shows three feature link cards", () => {
+  it("shows feature link cards", () => {
     cy.contains("Payroll Vault").should("be.visible");
     cy.contains("Milestone Escrow").should("be.visible");
     cy.contains("Subscriptions").should("be.visible");
+    cy.contains("Remittance").should("be.visible");
   });
 
   it("shows network badge with correct chain ID", () => {
-    // Chain ID is 420420417 (Paseo Asset Hub — confirmed on-chain by AGT-03/AGT-04)
-    cy.contains("420420417").should("be.visible");
-    cy.contains("Paseo Testnet").should("be.visible");
+    cy.contains("5042002").should("be.visible");
+    cy.contains("Arc Testnet").should("be.visible");
+    cy.contains("Arcscan Explorer").should("be.visible");
   });
 
   it("navigates to /payroll", () => {
@@ -52,7 +53,6 @@ describe("Navigation and page rendering", () => {
 
   it("active nav link is highlighted on each page", () => {
     cy.get("nav").contains("Payroll").click();
-    // Active link should have pink color — not the inactive grey
     cy.get("nav").contains("Payroll")
       .should("have.css", "color")
       .and("not.eq", "rgb(136, 136, 136)");
@@ -74,7 +74,6 @@ describe("Navigation and page rendering", () => {
 
   it("/subscriptions shows connect wallet prompt when not connected", () => {
     cy.visit("/subscriptions");
-    // Default tab is "subscriptions" — connect prompt is on the "plans" tab
     cy.contains("plans").click();
     cy.contains("Connect your wallet").should("be.visible");
   });
@@ -82,13 +81,10 @@ describe("Navigation and page rendering", () => {
   it("PayrollRoster section is visible without wallet connection", () => {
     cy.visit("/payroll");
     cy.contains("Employee Roster").should("be.visible");
-    // Wait for roster to finish loading, then check table or empty state
     cy.get("body").then($body => {
       if ($body.find("table").length > 0) {
-        // Employees exist — table rendered
         cy.get("table").should("be.visible");
       } else {
-        // No employees or still loading — wait for either
         cy.contains(/No employees|Employee Roster/, { timeout: 15_000 }).should("be.visible");
       }
     });

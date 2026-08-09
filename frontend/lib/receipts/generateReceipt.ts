@@ -190,16 +190,18 @@ export async function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
 
       const delivery = data.legs.delivery ?? data.legs.payout;
       if (delivery) {
-        const d = delivery as NonNullable<ReceiptData["legs"]>["delivery"] &
-          NonNullable<ReceiptData["legs"]>["payout"];
+        const method =
+          ("method" in delivery ? delivery.method : undefined) ??
+          ("mode" in delivery ? delivery.mode : undefined) ??
+          "payout";
         rows.push([
-          `Delivery · ${d.method ?? d.mode ?? "payout"}`,
+          `Delivery · ${method}`,
           [
-            d.payoutId,
-            d.amount ? `${d.amount} ${d.currency ?? ""}` : null,
-            d.txHash,
-            d.status,
-            d.chain,
+            delivery.payoutId,
+            delivery.amount ? `${delivery.amount} ${delivery.currency ?? ""}` : null,
+            delivery.txHash,
+            delivery.status,
+            "chain" in delivery ? delivery.chain : null,
           ]
             .filter(Boolean)
             .join(" · "),

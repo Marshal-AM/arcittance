@@ -27,7 +27,6 @@ const config: Config = {
       // Hook + lib tests — need jsdom environment for React hooks
       displayName:          "hooks",
       testMatch:            ["**/__tests__/{hooks,lib}/**/*.{ts,tsx}"],
-      testPathIgnorePatterns: ["/node_modules/", "__tests__/lib/papi"],
       testEnvironment:      "jsdom",
       transform:            sharedTransform,
       moduleNameMapper:     sharedMapper,

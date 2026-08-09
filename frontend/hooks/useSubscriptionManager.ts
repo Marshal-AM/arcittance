@@ -181,6 +181,9 @@ export function useCharge() {
     if (isCircleKeeperEnabled()) {
       const result = await circleKeeperCharge(subscriptionId);
       if (result.status === "error") throw new Error(result.error);
+      if (result.status !== "success" || !result.hash) {
+        throw new Error("Keeper charge did not return a transaction hash");
+      }
       return result.hash;
     }
     return writeContractAsync({

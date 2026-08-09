@@ -32,7 +32,6 @@ const EXCLUDE_DIRS = new Set([
   "artifacts",
   "cache",
   "typechain-types",
-  "legacy",
   ".next",
   "__tests__",
   "__mocks__",
@@ -43,9 +42,7 @@ const EXCLUDE_FILE_PATTERNS = [
   /check-forbidden-refs/,
   /MIGRATION_STATUS/,
   /phaseDocs/,
-  /lib\/papi\//,
   /jest\.env/,
-  /polkadot-api\.ts$/,
 ];
 
 const FORBIDDEN_PATTERNS: { pattern: RegExp; label: string }[] = [
@@ -106,7 +103,6 @@ function main(): void {
     const rel = path.relative(ROOT, file).replace(/\\/g, "/");
     if (EXCLUDE_FILE_PATTERNS.some(p => p.test(rel))) continue;
     if (rel.includes("test/mocks")) continue;
-    if (rel.includes("test/integration/legacy")) continue;
 
     const content = fs.readFileSync(file, "utf8");
     for (const { pattern, label } of FORBIDDEN_PATTERNS) {

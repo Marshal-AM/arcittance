@@ -31,7 +31,7 @@ export {};
  * ─── Prerequisites ────────────────────────────────────────────────────────
  *  • `npm run dev` running on http://localhost:3000
  *  • Connected wallet: 0xce4389ACb79463062c362fACB8CB04513fA3D8D8
- *    (Paseo testnet, chain ID 420420417)
+ *    (Arc testnet, chain ID 5042002)
  *  • cypress.env.json (optional, enables TASK tests):
  *    { "DEPLOYER_PRIVATE_KEY": "0x…" }
  *
@@ -46,7 +46,7 @@ export {};
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const CONNECTED_ADDR = "0xce4389ACb79463062c362fACB8CB04513fA3D8D8";
-/** 2 minutes — enough for user to switch to MetaMask, sign, + Paseo block confirmation */
+/** 2 minutes — enough for user to switch to MetaMask, sign, + Arc confirmation */
 const TX_TIMEOUT   = 120_000;
 /** 15 s — for on-chain read / API response / wagmi refetch cycle */
 const READ_TIMEOUT = 15_000;
@@ -68,7 +68,7 @@ const TASK_ERC20_ABI = [
  *   • Answers eth_accounts / eth_requestAccounts with CONNECTED_ADDR
  *   • Does NOT set isMetaMask = true so wagmi labels it "Injected" (avoids
  *     MetaMask SDK interference and keeps the connector name predictable)
- *   • Forwards all other requests to the Paseo public RPC (read-only)
+ *   • Forwards all other requests to the Arc public RPC (read-only)
  *
  * After the page loads, connectWallet() is called to click through the
  * "Connect Wallet" → "Injected" flow so wagmi reaches isConnected = true.
@@ -79,15 +79,15 @@ function visitWithWallet(path: string) {
       win.ethereum = {
         isMetaMask:      false,   // <-- keeps connector label as "Injected"
         selectedAddress: CONNECTED_ADDR,
-        chainId:         "0x190f1b41", // 420420417
+        chainId:         "0x4cef52", // 5042002
         request: async ({ method, params }: { method: string; params?: any[] }) => {
           if (method === "eth_requestAccounts")    return [CONNECTED_ADDR];
           if (method === "eth_accounts")           return [CONNECTED_ADDR];
-          if (method === "eth_chainId")            return "0x190f1b41";
-          if (method === "net_version")            return "420420417";
+          if (method === "eth_chainId")            return "0x4cef52";
+          if (method === "net_version")            return "5042002";
           if (method === "wallet_switchEthereumChain") return null;
           // Proxy all other calls (reads) to the public RPC
-          const rpcUrl = Cypress.env("PASEO_RPC_URL") as string;
+          const rpcUrl = Cypress.env("ARC_RPC_URL") as string;
           const res    = await fetch(rpcUrl, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ function deployerKey(): `0x${string}` | null {
   return k ? k as `0x${string}` : null;
 }
 function rpcUrl(): string {
-  return Cypress.env("PASEO_RPC_URL") as string;
+  return Cypress.env("ARC_RPC_URL") as string;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -140,10 +140,9 @@ describe("1 · Page Loading", () => {
     cy.visit("/app");
     cy.contains("Programmable").should("be.visible");
     cy.contains("Payments").should("be.visible");
-    cy.contains("on Polkadot Hub").should("be.visible");
-    cy.contains("Paseo Testnet").should("be.visible");
-    cy.contains("420420417").should("be.visible");
-    cy.contains("Blockscout Explorer").should("be.visible");
+    cy.contains("Arc Testnet").should("be.visible");
+    cy.contains("5042002").should("be.visible");
+    cy.contains("Arcscan Explorer").should("be.visible");
   });
 
   it("1.2  Dashboard shows 4 stat cards", () => {

@@ -28,7 +28,7 @@ export async function executeContractCall(params: {
     walletId:             params.walletId,
     contractAddress:      params.contractAddress,
     abiFunctionSignature: params.abiFunctionSignature,
-    abiParameters:        params.abiParameters,
+    abiParameters:        params.abiParameters ?? [],
     fee:                  sponsorTransactionFee(),
   });
 

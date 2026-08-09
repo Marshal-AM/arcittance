@@ -47,6 +47,7 @@ export async function updateMintLedger(
   id: string,
   patch: Partial<{
     status: MintLedgerStatus;
+    bank_account_id: string;
     deposit_id: string;
     transfer_id: string;
     recipient_address_id: string;

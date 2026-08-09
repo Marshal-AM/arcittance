@@ -54,6 +54,7 @@ export function useCreateMilestone() {
         });
         setTxStatus(result);
         if (result.status === "error") throw new Error(result.error);
+        if (result.status === "idle") throw new Error("Keeper create did not run");
         if (!result.hash) throw new Error("Keeper create returned no hash");
         // Best-effort id: latest count − 1 after keeper settles
         let onChainId = "0";

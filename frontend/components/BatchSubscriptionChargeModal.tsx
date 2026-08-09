@@ -29,7 +29,9 @@ export function BatchSubscriptionChargeModal({ open, onClose, subscriptionIds }:
           setTxStatus(result);
           return;
         }
-        lastHash = result.hash ?? lastHash;
+        if (result.status !== "idle") {
+          lastHash = result.hash ?? lastHash;
+        }
         setProgress(i + 1);
       }
       setTxStatus({ status: "success", hash: lastHash });

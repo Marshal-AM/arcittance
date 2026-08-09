@@ -358,7 +358,7 @@ export default function RemitPage() {
             senderAddress: wallet.address,
             recipientAddress: fiatBankId,
             amount: String(Math.round(Number(amount || convertAmount) * 1_000_000)),
-            routingMethod: fundingPath === "A" ? ROUTING_CCTP : ROUTING_GATEWAY,
+            routingMethod: ROUTING_GATEWAY,
             status: "pending",
           }),
         });
@@ -381,14 +381,11 @@ export default function RemitPage() {
         setLegs((prev) => ({
           ...prev,
           funding:
-            prev.funding ??
-            (fundingPath === "A"
-              ? { status: "complete", path: "A", walletAddress: wallet.address }
-              : {
-                  status: "complete",
-                  path: "B",
-                  amount: amount || convertAmount,
-                }),
+            prev.funding ?? {
+              status: "complete",
+              path: "B",
+              amount: amount || convertAmount,
+            },
           delivery: {
             status: "pending",
             mode: "fiat",
@@ -1243,26 +1240,10 @@ export default function RemitPage() {
               )}
             </div>
           )}
-                  {(fundingPath === "B" || fundingPath === "B_MOCK") && (
+                  {fundingPath === "B" && (
                     <p className="text-xs text-[var(--text-muted)]">
-                      {fundingPath === "B_MOCK"
-                        ? "Bank-mock: Circle Stablecoin Payouts deliver USDC; AED out is a display conversion only."
-                        : "Path B crypto uses Circle Stablecoin Payouts (no CCTP/Gateway on your side)."}
+                      Path B crypto uses Circle Stablecoin Payouts (no CCTP/Gateway on your side).
                     </p>
-                  )}
-                  {fundingPath === "B_MOCK" && bankMockMeta && (
-                    <div
-                      className="rounded-xl border border-black/[0.07] p-3 text-xs flex flex-col gap-1"
-                      data-testid="bank-mock-send-summary"
-                    >
-                      <div className="flex items-center gap-1.5 text-[#111]">
-                        <img src="/images/dhiram.png" alt="" width={16} height={16} className="rounded-full" />
-                        Funded {bankMockMeta.aedAmount} AED → {bankMockMeta.usdcAmount} USDC
-                      </div>
-                      <p className="text-black/45 font-mono break-all">
-                        To {bankMockMeta.recipientAddress} · {bankMockMeta.chain}
-                      </p>
-                    </div>
                   )}
                   {fundingPath === "A" && (
           <FeePanel
