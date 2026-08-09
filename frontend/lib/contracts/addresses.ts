@@ -85,7 +85,7 @@ export const ROUTING_METHOD_LABELS: Record<number, string> = {
 };
 
 export const TRANSFER_SPEED_LABELS: Record<number, string> = {
-  [TRANSFER_SPEED_STANDARD]: "Standard (~15 min)",
+  [TRANSFER_SPEED_STANDARD]: "Standard",
   [TRANSFER_SPEED_FAST]:     "Fast (~20 sec)",
 };
 

@@ -262,22 +262,15 @@ describe("11 remittance dual-rail full flow", () => {
     cy.get('[data-testid="settlement-tracker"]').should("contain", "Bank-mock");
   });
 
-  it("Path A → fiat bank delivery", () => {
+  it("Path A send shows static crypto onchain delivery", () => {
     cy.visit("/remit");
     injectWallet();
     cy.get('[data-testid="fund-continue"]').click();
     cy.contains("Skip convert").click();
 
-    cy.get('[data-testid="delivery-mode"]').select("fiat");
-    cy.get('input[placeholder*="uuid"]').clear().type("00000000-0000-0000-0000-000000000001");
-    cy.get('[data-testid="send-submit"]')
-      .parents("form")
-      .find('input[type="number"]')
-      .clear()
-      .type("25");
-    cy.get('[data-testid="send-submit"]').click();
-    cy.wait("@fiatPayout");
-    cy.get('[data-testid="settlement-tracker"]').should("contain", "Bank");
+    cy.get("select[data-testid='delivery-mode']").should("not.exist");
+    cy.get('[data-testid="delivery-mode"]').should("contain", "Crypto onchain");
+    cy.contains("Fiat bank withdraw").should("not.exist");
   });
 
   it("Path B → optional StableFX convert then continue", () => {

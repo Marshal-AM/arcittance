@@ -348,7 +348,8 @@ export default function RemitPage() {
     setStep("track");
 
     try {
-      if (deliveryMode === "fiat") {
+      // Path A is crypto-onchain only; fiat bank withdraw is Path B (if selected).
+      if (fundingPath !== "A" && deliveryMode === "fiat") {
         if (!fiatBankId) throw new Error("Destination bank id required for fiat payout");
         const remitRes = await fetch("/api/remittances", {
           method: "POST",
@@ -734,6 +735,7 @@ export default function RemitPage() {
                 onClick={() => {
                   setFundingPath(p);
                   setStep("fund");
+                  if (p === "A") setDeliveryMode("crypto");
                   if (p !== "B_MOCK") {
                     setBankMockMeta(null);
                     setAedSettledDisplay(null);
@@ -1100,19 +1102,29 @@ export default function RemitPage() {
             >
               <div>
                 <label className="text-xs text-[var(--text-secondary)]">Delivery</label>
-                <select
-                  className={inputClass}
-                  style={inputStyle}
-                  value={deliveryMode}
-                  onChange={(e) => setDeliveryMode(e.target.value as "crypto" | "fiat")}
-                  data-testid="delivery-mode"
-                >
-                  <option value="crypto">Crypto onchain</option>
-                  <option value="fiat">Fiat bank withdraw</option>
-                </select>
+                {fundingPath === "A" ? (
+                  <p
+                    className={`${inputClass} flex items-center`}
+                    style={inputStyle}
+                    data-testid="delivery-mode"
+                  >
+                    Crypto onchain
+                  </p>
+                ) : (
+                  <select
+                    className={inputClass}
+                    style={inputStyle}
+                    value={deliveryMode}
+                    onChange={(e) => setDeliveryMode(e.target.value as "crypto" | "fiat")}
+                    data-testid="delivery-mode"
+                  >
+                    <option value="crypto">Crypto onchain</option>
+                    <option value="fiat">Fiat bank withdraw</option>
+                  </select>
+                )}
               </div>
 
-              {deliveryMode === "crypto" ? (
+              {(fundingPath === "A" || deliveryMode === "crypto") ? (
                 <>
           <RecipientInput
             value={recipient}
@@ -1225,7 +1237,7 @@ export default function RemitPage() {
                             onChange={(e) => setTransferSpeed(Number(e.target.value))}
                           >
                     <option value={TRANSFER_SPEED_FAST}>Fast (~20s)</option>
-                    <option value={0}>Standard (~15 min)</option>
+                    <option value={0}>Standard</option>
                   </select>
                 </div>
               )}
@@ -1304,7 +1316,7 @@ export default function RemitPage() {
               >
             {txStatus.status === "pending"
                   ? "Sending…"
-                  : deliveryMode === "fiat"
+                  : fundingPath !== "A" && deliveryMode === "fiat"
                     ? "Withdraw to bank"
                     : "Send remittance"}
           </button>
