@@ -324,11 +324,10 @@ Every payment flow follows the same four-step mental model shown on the landing 
 | Feature | Status |
 |---------|--------|
 | Payroll (Arc-local) | Fully working |
-| Payroll (cross-chain CCTP/Gateway) | Working with orchestrator |
+| Payroll (cross-chain CCTP/Gateway) | Fully working |
 | Milestones | Fully working |
 | Subscriptions | Fully working |
 | Remit Path A (wallet + CCTP/Gateway) | Fully working |
-| Remit Path B (bank wire → Mint) | **Blocked** — sandbox wire API (see Feedback) |
 | Remit Path B Mock (AED corridor) | Fully working |
 
 ---
