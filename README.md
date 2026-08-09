@@ -4,17 +4,19 @@
 
 The platform integrates deeply with Circle's product suite: **User Wallets (W3S)**, **Developer Controlled Wallets**, **Mint**, **Payins**, **Payouts**, **StableFX**, **CCTP / Bridge Kit**, and **Gateway / Unified Balance Kit**. Off-chain orchestrators complete cross-chain burns, unified-balance spends, and FX settlement legs that smart contracts alone cannot finish. Every remittance is tracked leg-by-leg with downloadable PDF receipts.
 
-Arcittance is designed for judges, developers, and the Circle team who want to see programmable stablecoin payments — from employer payroll runs to AED corridor remittance demos — on a purpose-built stablecoin L1.
+Remittance supports both **crypto-native** delivery (Path A — embedded wallet to on-chain recipient) and **bank-based fiat corridors**. Path B targets full fiat-on-ramp: sender bank wire → Circle Mint → on-chain USDC → Payouts or fiat wire to the recipient's bank.
+
+Arcittance is designed for judges, developers, and the Circle team who want to see programmable stablecoin payments — from employer payroll runs to cross-chain USDC remittance and AED bank-corridor settlement — on a purpose-built stablecoin L1.
 
 ---
 
 ## Important Links
 
-| Live App | Demo Video | Pitch Deck |
-|----------|------------|------------|
-| [arcittance.vercel.app](https://arcittance.vercel.app/) | TBD | TBD |
-
-**Repository:** [github.com/Marshal-AM/arcittance](https://github.com/Marshal-AM/arcittance)
+| Link | URL |
+|------|-----|
+| **Live App** | [arcittance.vercel.app](https://arcittance.vercel.app/) |
+| **Demo Video** | TBD |
+| **Pitch Deck** | TBD |
 
 ---
 
@@ -43,32 +45,113 @@ Source of truth: [`deployments/arc/addresses.json`](deployments/arc/addresses.js
 
 ## Table of Contents
 
+- [Important Links](#important-links)
+- [Deployed Contracts (Arc Testnet)](#deployed-contracts-arc-testnet)
 - [Introduction](#introduction)
+  - [Tech stack](#tech-stack)
+  - [Repository layout](#repository-layout)
+  - [Platform overview](#platform-overview)
 - [The Problem](#the-problem)
+  - [Correspondent banking is costly and slow](#correspondent-banking-is-costly-and-slow)
+  - [Tooling is siloed](#tooling-is-siloed)
+  - [Stablecoin infrastructure lacks programmable primitives](#stablecoin-infrastructure-lacks-programmable-primitives)
 - [The Solution (Arcittance)](#the-solution-arcittance)
+  - [End-to-end workflow (all features)](#end-to-end-workflow-all-features)
+  - [What is demo-ready today](#what-is-demo-ready-today)
 - [Payroll](#payroll)
+  - [Architecture](#architecture)
   - [Org and Vault Factory Pattern](#org-and-vault-factory-pattern)
   - [Employee Roster and Scheduling](#employee-roster-and-scheduling)
+  - [Full payroll flow (step-by-step)](#full-payroll-flow-step-by-step)
   - [Arc-Local vs Cross-Chain Payout](#arc-local-vs-cross-chain-payout)
   - [Circle Keeper and Gas Sponsorship](#circle-keeper-and-gas-sponsorship)
   - [Post-Payroll CCTP Orchestration](#post-payroll-cctp-orchestration)
+  - [Payroll key files](#payroll-key-files)
+  - [Supported destination chains](#supported-destination-chains)
 - [Milestones (Conditional Escrow)](#milestones-conditional-escrow)
-  - [On-Chain Lifecycle](#on-chain-lifecycle)
-  - [Approver Governance](#approver-governance)
-  - [Keeper-Assisted Creation](#keeper-assisted-creation)
-  - [Metadata and Tracking](#metadata-and-tracking)
+  - [Design intent](#design-intent)
+  - [System architecture](#system-architecture)
+  - [On-chain state machine (financial lifecycle)](#on-chain-state-machine-financial-lifecycle)
+  - [On-chain data model](#on-chain-data-model)
+  - [On-chain lifecycle](#on-chain-lifecycle)
+  - [Security properties](#security-properties)
+  - [Split storage model](#split-storage-model)
+  - [Full milestone flow (step-by-step)](#full-milestone-flow-step-by-step)
+  - [Keeper-assisted creation](#keeper-assisted-creation)
+  - [Indexer events](#indexer-events)
+  - [Key files](#key-files)
 - [Subscriptions](#subscriptions)
-  - [Plans and Subscriber Caps](#plans-and-subscriber-caps)
-  - [Charge Lifecycle](#charge-lifecycle)
-  - [Batch Billing (Marketplace)](#batch-billing-marketplace)
+  - [Design intent](#design-intent-1)
+  - [System architecture](#system-architecture-1)
+  - [Plan and subscription lifecycles](#plan-and-subscription-lifecycles)
+  - [Charge sequence](#charge-sequence)
+  - [On-chain data model](#on-chain-data-model-1)
+  - [Charge preconditions](#charge-preconditions)
+  - [Comparison to traditional billing](#comparison-to-traditional-billing)
+  - [Full subscription flow (step-by-step)](#full-subscription-flow-step-by-step)
+  - [Batch billing (marketplace)](#batch-billing-marketplace)
+  - [Metadata](#metadata)
+  - [Key files](#key-files-1)
 - [Remittance](#remittance)
   - [Crypto-Native Remittance (Path A)](#crypto-native-remittance-path-a)
+    - [End-to-end layer architecture](#end-to-end-layer-architecture)
+    - [UI stepper](#ui-stepper)
+    - [Sign-in and wallet provisioning](#sign-in-and-wallet-provisioning)
+    - [StableFX convert leg (optional)](#stablefx-convert-leg-optional)
+    - [Arc-local send](#arc-local-send)
+    - [Cross-chain send (CCTP vs Gateway)](#cross-chain-send-cctp-vs-gateway)
+    - [Facilitator dual-wallet model](#facilitator-dual-wallet-model)
+    - [Compliance, tracking, and receipts](#compliance-tracking-and-receipts)
+    - [EURC constraint](#eurc-constraint)
+    - [Path A full flow (step-by-step)](#path-a-full-flow-step-by-step)
+    - [Path A key files](#path-a-key-files)
   - [Bank-Based Remittance (Path B)](#bank-based-remittance-path-b)
+    - [Multi-phase architecture](#multi-phase-architecture)
+    - [Phase 1 — Wire on-ramp (fund)](#phase-1--wire-on-ramp-fund)
+    - [Phase 2 — Mint to on-chain USDC](#phase-2--mint-to-on-chain-usdc)
+    - [Phase 3 — Ledger attribution](#phase-3--ledger-attribution)
+    - [Phase 4 — Optional StableFX convert](#phase-4--optional-stablefx-convert)
+    - [Phase 5a — Crypto delivery (Payouts)](#phase-5a--crypto-delivery-payouts)
+    - [Phase 5b — Fiat delivery (Mint wire payout)](#phase-5b--fiat-delivery-mint-wire-payout)
+    - [UI flow](#ui-flow)
+    - [Circle products touched](#circle-products-touched)
+    - [Path B key files](#path-b-key-files)
   - [Path B Sandbox Blocker (Circle Wire API)](#path-b-sandbox-blocker-circle-wire-api)
+    - [Intended first step](#intended-first-step)
+    - [What Circle returned](#what-circle-returned)
+    - [What we tried](#what-we-tried)
+    - [What still worked](#what-still-worked)
+    - [Impact](#impact)
   - [Bank Remittance Mock (Path B Mock)](#bank-remittance-mock-path-b-mock)
+    - [Architecture](#architecture-1)
+    - [What B_MOCK reuses from Path B](#what-b_mock-reuses-from-path-b)
+    - [What B_MOCK replaces](#what-b_mock-replaces)
+    - [B_MOCK vs Path B comparison](#b_mock-vs-path-b-comparison)
+    - [B_MOCK flow (step-by-step)](#b_mock-flow-step-by-step)
 - [Circle Integrations](#circle-integrations)
+  - [Master integration table](#master-integration-table)
+  - [Per-product detail](#per-product-detail)
+  - [Non-Circle integrations](#non-circle-integrations)
+  - [Circle product usage by feature](#circle-product-usage-by-feature)
 - [Contracts on Arc](#contracts-on-arc)
+  - [How the contracts relate](#how-the-contracts-relate)
+  - [PayrollOrgRegistry](#payrollorgregistry)
+  - [PayrollVault (per-org, factory-deployed)](#payrollvault-per-org-factory-deployed)
+  - [PayrollScheduler](#payrollscheduler)
+  - [CrossChainRouter](#crosschainrouter)
+  - [ConditionalEscrow](#conditionalescrow)
+  - [SubscriptionManager](#subscriptionmanager)
+  - [RemittanceVault](#remittancevault)
+  - [FXSettlementEscrow](#fxsettlementescrow)
+  - [Tokens and CCTP infrastructure](#tokens-and-cctp-infrastructure)
+  - [CCTP destination domain mapping](#cctp-destination-domain-mapping)
+  - [Interface contracts](#interface-contracts)
 - [Feedback for Circle Team](#feedback-for-circle-team)
+  - [Issue summary](#issue-summary)
+  - [Reproduction](#reproduction)
+  - [Business impact](#business-impact)
+  - [What we need from Circle](#what-we-need-from-circle)
+  - [What worked well (thank you)](#what-worked-well-thank-you)
 - [How to Setup the Project](#how-to-setup-the-project)
   - [Prerequisites](#prerequisites)
   - [Clone and Install](#clone-and-install)
@@ -82,10 +165,10 @@ Source of truth: [`deployments/arc/addresses.json`](deployments/arc/addresses.js
   - [Verify Your Setup](#verify-your-setup)
   - [Feature-Specific Requirements](#feature-specific-requirements)
   - [Troubleshooting](#troubleshooting)
+- [Roadmap](#roadmap)
+  - [Near term (testnet → production readiness)](#near-term-testnet--production-readiness)
+  - [Integrations and scale](#integrations-and-scale)
 - [Conclusion](#conclusion)
-- [Appendix A — API Route Index](#appendix-a--api-route-index)
-- [Appendix B — Environment Variable Reference](#appendix-b--environment-variable-reference)
-- [Appendix C — Testing and Verification Commands](#appendix-c--testing-and-verification-commands)
 
 ---
 
@@ -310,13 +393,15 @@ function createVault(uint256 orgId) external returns (address vaultAddr) {
 
 Each organisation gets an **isolated vault** — employee rosters and balances do not mix between orgs.
 
+> All file paths in this section link to source in this repository.
+
 | File | Role |
 |------|------|
-| `contracts/PayrollOrgRegistry.sol` | Org + vault factory |
-| `contracts/PayrollVault.sol` | Per-org payroll logic |
-| `frontend/components/PayrollOrgPanel.tsx` | Create org + deploy vault UI |
-| `frontend/hooks/usePayrollOrgRegistry.ts` | On-chain org/vault hooks |
-| `frontend/contexts/PayrollOrgContext.tsx` | Selected org persistence |
+| [PayrollOrgRegistry.sol](contracts/PayrollOrgRegistry.sol) | Org + vault factory |
+| [PayrollVault.sol](contracts/PayrollVault.sol) | Per-org payroll logic |
+| [PayrollOrgPanel.tsx](frontend/components/PayrollOrgPanel.tsx) | Create org + deploy vault UI |
+| [usePayrollOrgRegistry.ts](frontend/hooks/usePayrollOrgRegistry.ts) | On-chain org/vault hooks |
+| [PayrollOrgContext.tsx](frontend/contexts/PayrollOrgContext.tsx) | Selected org persistence |
 
 ### Employee Roster and Scheduling
 
@@ -354,7 +439,7 @@ No admin key, no token access — only due-date and cap logic.
    - Scheduler returns due employees
    - Arc-local employees: direct `IERC20.transfer`
    - Cross-chain employees: vault calls `CrossChainRouter.routeCCTP` or `routeGateway`
-8. **Post-payroll orchestration** (CCTP path only) — frontend calls `POST /api/cross-chain/orchestrate` with `{ payrollTxHash, vaultAddress }`
+8. **Post-payroll orchestration** (CCTP path only) — frontend calls [`POST /api/cross-chain/orchestrate`](frontend/app/api/cross-chain/orchestrate/route.ts) with `{ payrollTxHash, vaultAddress }`
 9. Orchestrator parses `RouteCCTP` events and runs Bridge Kit to mint USDC on destination chains
 10. Employee receives USDC on destination chain wallet
 
@@ -376,8 +461,8 @@ When `NEXT_PUBLIC_USE_CIRCLE_KEEPER=true`, a **Developer Controlled Wallet** (fa
 
 | API route | Action |
 |-----------|--------|
-| `POST /api/circle/keeper/run-payroll` | Single payroll run |
-| `POST /api/circle/keeper/batch-payroll` | Batch employee registration + payroll |
+| [`POST /api/circle/keeper/run-payroll`](frontend/app/api/circle/keeper/run-payroll/route.ts) | Single payroll run |
+| [`POST /api/circle/keeper/batch-payroll`](frontend/app/api/circle/keeper/batch-payroll/route.ts) | Batch employee registration + payroll |
 
 Implementation: [`circle/src/developer-client.ts`](circle/src/developer-client.ts), [`circle/src/gas-station.ts`](circle/src/gas-station.ts).
 
@@ -406,19 +491,19 @@ Key file: [`circle/src/cross-chain-orchestrator.ts`](circle/src/cross-chain-orch
 
 ### Payroll key files
 
-| Category | Path |
+| Category | File |
 |----------|------|
-| Contract | `contracts/PayrollVault.sol` |
-| Contract | `contracts/PayrollScheduler.sol` |
-| Contract | `contracts/CrossChainRouter.sol` |
-| Hook | `frontend/hooks/usePayrollVault.ts` |
-| Hook | `frontend/hooks/useCircleKeeper.ts` |
-| Component | `frontend/components/EmployeeForm.tsx` |
-| Component | `frontend/components/PayrollRoster.tsx` |
-| Component | `frontend/components/BatchPayrollModal.tsx` |
-| API | `frontend/app/api/payroll/route.ts` |
-| API | `frontend/app/api/organizations/route.ts` |
-| API | `frontend/app/api/cross-chain/orchestrate/route.ts` |
+| Contract | [PayrollVault.sol](contracts/PayrollVault.sol) |
+| Contract | [PayrollScheduler.sol](contracts/PayrollScheduler.sol) |
+| Contract | [CrossChainRouter.sol](contracts/CrossChainRouter.sol) |
+| Hook | [usePayrollVault.ts](frontend/hooks/usePayrollVault.ts) |
+| Hook | [useCircleKeeper.ts](frontend/hooks/useCircleKeeper.ts) |
+| Component | [EmployeeForm.tsx](frontend/components/EmployeeForm.tsx) |
+| Component | [PayrollRoster.tsx](frontend/components/PayrollRoster.tsx) |
+| Component | [BatchPayrollModal.tsx](frontend/components/BatchPayrollModal.tsx) |
+| API | [payroll/route.ts](frontend/app/api/payroll/route.ts) |
+| API | [organizations/route.ts](frontend/app/api/organizations/route.ts) |
+| API | [orchestrate/route.ts](frontend/app/api/cross-chain/orchestrate/route.ts) |
 
 ### Supported destination chains
 
@@ -433,9 +518,82 @@ Key file: [`circle/src/cross-chain-orchestrator.ts`](circle/src/cross-chain-orch
 
 ## Milestones (Conditional Escrow)
 
-Milestone escrow lets a payer lock USDC against deliverables. Funds release when enough designated approvers sign off; otherwise the payer can reclaim after a dispute deadline.
+Milestone escrow is Arcittance's **conditional payment primitive** for freelance, marketplace, and project-based work. A payer locks USDC on Arc; funds release only when enough designated approvers sign off. If work is never accepted, the payer reclaims after a dispute deadline. Financial rules live entirely on-chain — title and description are stored off-chain for UX.
 
-### Architecture (state machine)
+### Design intent
+
+Traditional escrow relies on legal contracts and manual dispute resolution. Arcittance encodes the rules in [`ConditionalEscrow.sol`](contracts/ConditionalEscrow.sol):
+
+- **N-of-M approver governance** — e.g. 2-of-3 stakeholders must approve before release
+- **Immutable approver list** — set at creation; cannot be changed mid-flight
+- **Dispute deadline** — payer can reclaim if approvers never release
+- **Native USDC on Arc** — no wrapped tokens; gas paid in USDC
+
+This maps directly to milestone-based freelance payments, DAO deliverable funding, and marketplace escrow where a platform or client must sign off before a contractor is paid.
+
+### System architecture
+
+The milestone stack spans UI, API, Supabase metadata, and on-chain escrow:
+
+```mermaid
+flowchart TB
+  subgraph ui [Escrow UI]
+    EscrowPage[escrow/page.tsx]
+    MilestoneCard[MilestoneCard.tsx]
+    Hook[useConditionalEscrow.ts]
+  end
+
+  subgraph api [Next.js API]
+    ListAPI[milestones/route.ts]
+    MetaAPI[milestones/metadata/route.ts]
+    KeeperAPI[keeper/create-milestone]
+  end
+
+  subgraph persist [Supabase]
+    MetaTable[milestone_metadata]
+  end
+
+  subgraph chain [Arc On-Chain]
+    Escrow[ConditionalEscrow.sol]
+    USDC[Native USDC]
+  end
+
+  EscrowPage --> Hook
+  Hook -->|approve plus createMilestone| Escrow
+  EscrowPage --> MetaAPI --> MetaTable
+  EscrowPage --> ListAPI
+  ListAPI -->|getMilestone plus merge metadata| Escrow
+  KeeperAPI -->|optional gasless create| Escrow
+  Escrow -->|lock on create| USDC
+  Escrow -->|release on N approvals| USDC
+  MilestoneCard -->|approve or reclaim| Escrow
+```
+
+### Create → approve → release sequence
+
+```mermaid
+sequenceDiagram
+  participant Payer
+  participant USDC as Native USDC
+  participant Escrow as ConditionalEscrow
+  participant Approver1 as Approver 1
+  participant Approver2 as Approver 2
+  participant Payee
+
+  Payer->>USDC: approve(Escrow, amount)
+  Payer->>Escrow: createMilestone(payee, token, amount, approvers, N, deadline)
+  Escrow->>USDC: transferFrom(payer, escrow, amount)
+  Escrow-->>Payer: MilestoneCreated event
+
+  Approver1->>Escrow: approveMilestone(id)
+  Escrow-->>Approver1: MilestoneApproved (count=1)
+
+  Approver2->>Escrow: approveMilestone(id)
+  Escrow->>USDC: transfer(payee, amount)
+  Escrow-->>Payee: MilestoneReleased event
+```
+
+### On-chain state machine (financial lifecycle)
 
 ```mermaid
 stateDiagram-v2
@@ -449,65 +607,169 @@ stateDiagram-v2
   Reclaimed --> [*]
 ```
 
-### On-Chain Lifecycle
+Once `released` or `reclaimed` is true, the milestone is terminal — no further transitions.
 
-Contract: [`contracts/ConditionalEscrow.sol`](contracts/ConditionalEscrow.sol)
+### On-chain data model
+
+Each milestone is stored in the `Milestone` struct in [ConditionalEscrow.sol](contracts/ConditionalEscrow.sol):
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `payer` | address | Who locked the funds |
+| `payee` | address | Who receives on release |
+| `token` | address | USDC (or EURC) contract address |
+| `amount` | uint256 | Locked amount in token base units (6 decimals) |
+| `approvers` | address[] | Immutable list of addresses that can approve |
+| `approvalsRequired` | uint256 | Minimum approvals needed (N in N-of-M) |
+| `approvalCount` | uint256 | Running count of approvals received |
+| `hasApproved` | mapping | Prevents double-approval by same address |
+| `disputeDeadline` | uint256 | Unix timestamp — payer can reclaim after this |
+| `released` | bool | True after funds sent to payee |
+| `reclaimed` | bool | True after funds returned to payer |
+
+### On-chain lifecycle
 
 | Function | Actor | Effect |
 |----------|-------|--------|
-| `createMilestone(payee, token, amount, approvers[], approvalsRequired, disputeDeadline)` | Payer | Locks USDC in escrow (requires prior approve) |
-| `approveMilestone(id)` | Listed approver | Increments approval count |
+| `createMilestone(...)` | Payer | Locks USDC in escrow (requires prior ERC-20 approve) |
+| `approveMilestone(id)` | Listed approver | Increments approval count; auto-releases when threshold met |
 | Auto-release | Contract | When `approvalCount >= approvalsRequired`, transfers to payee |
-| `reclaimExpired(id)` | Payer | After `disputeDeadline`, if not released |
+| `reclaimExpired(id)` | Payer | After `disputeDeadline`, if not released, returns funds to payer |
+
+### Security properties
+
+- **ReentrancyGuard** — all state-changing functions are non-reentrant
+- **Immutable approvers** — approver list cannot be modified after creation
+- **No keeper on approve/reclaim** — approvers and payers must sign with their own wallets; the Circle keeper cannot approve or reclaim on anyone's behalf
+- **Double-approval prevention** — `hasApproved` mapping reverts if the same approver tries twice
+- **Deadline enforcement** — reclaim only succeeds after `block.timestamp > disputeDeadline` and milestone is not already released
+
+### Split storage model
+
+Arcittance deliberately splits on-chain financial data from off-chain descriptive metadata:
+
+| Layer | Stores | Why |
+|-------|--------|-----|
+| **On-chain** ([ConditionalEscrow.sol](contracts/ConditionalEscrow.sol)) | payer, payee, amount, approvers, deadlines, release state | Immutable financial truth; auditable on Arcscan |
+| **Supabase** (via [milestones/metadata/route.ts](frontend/app/api/milestones/metadata/route.ts)) | title, description | Human-readable labels; cheap to update; not needed for settlement |
+
+The list API ([milestones/route.ts](frontend/app/api/milestones/route.ts)) reads on-chain `getMilestone(id)` and merges Supabase metadata for display in [MilestoneCard.tsx](frontend/components/MilestoneCard.tsx).
 
 ### Full milestone flow (step-by-step)
 
-1. Navigate to `/escrow`
+1. Navigate to [`/escrow`](frontend/app/escrow/page.tsx)
 2. Fill form: title, description, payee address, amount, approvers, approvals required, dispute deadline
-3. **Approve USDC** to `ConditionalEscrow` contract
-4. **Create milestone** on-chain — USDC locked
-5. **Save metadata** — `POST /api/milestones/metadata` stores title/description in Supabase (on-chain stores financial fields only)
-6. Approvers see milestone in list via `GET /api/milestones`
-7. Each approver calls `approveMilestone(id)` from their own wallet
-8. On sufficient approvals → funds release to payee automatically
-9. If deadline passes without release → payer calls `reclaimExpired(id)`
+3. **Approve USDC** — payer sends `approve(ConditionalEscrow, amount)` tx on Arc
+4. **Create milestone** — payer calls `createMilestone(...)` via [useConditionalEscrow.ts](frontend/hooks/useConditionalEscrow.ts); USDC locked in escrow
+5. **Save metadata** — [`POST /api/milestones/metadata`](frontend/app/api/milestones/metadata/route.ts) stores title/description in Supabase
+6. Approvers see milestone in list via [`GET /api/milestones`](frontend/app/api/milestones/route.ts)
+7. Each approver connects wallet and calls `approveMilestone(id)` — must be their own signature
+8. When `approvalCount >= approvalsRequired` → contract auto-transfers USDC to payee; `MilestoneReleased` event emitted
+9. If deadline passes without release → payer calls `reclaimExpired(id)`; USDC returned; `MilestoneReclaimed` event emitted
 
-### Approver Governance
+### Keeper-assisted creation
 
-- Approvers are set at creation time — immutable list
-- `approvalsRequired` can be 1 or more (N-of-M)
-- **Approvers must sign themselves** — the keeper cannot approve on a user's behalf
-- Double-approval is prevented via `hasApproved` mapping
+Optional gasless path for milestone **creation only** (not approve or reclaim):
 
-### Keeper-Assisted Creation
+- [`POST /api/circle/keeper/create-milestone`](frontend/app/api/circle/keeper/create-milestone/route.ts) — facilitator Developer Controlled Wallet approves USDC + creates milestone
+- Enabled when `NEXT_PUBLIC_USE_CIRCLE_KEEPER=true`
+- Useful for demos where the payer should not pay gas
+- **Approve, release, and reclaim always require the relevant party's wallet signature**
 
-Optional keeper path for milestone **creation only**:
+### Indexer events
 
-- `POST /api/circle/keeper/create-milestone` — facilitator wallet approves USDC + creates milestone
-- Useful for gasless onboarding demos
-- Approve, release, and reclaim always require the relevant party's wallet signature
+| Event | When emitted | Key indexed fields |
+|-------|--------------|-------------------|
+| `MilestoneCreated` | After create + lock | `id`, `payer`, `payee`, `amount` |
+| `MilestoneApproved` | Each approver signs | `id`, `approver`, `approvalCount` |
+| `MilestoneReleased` | Threshold met | `id`, `payee`, `amount` |
+| `MilestoneReclaimed` | Payer reclaims after deadline | `id`, `payer`, `amount` |
 
-### Metadata and Tracking
+### Key files
 
-| Storage | Fields |
-|---------|--------|
-| On-chain | payer, payee, token, amount, approvers, approvals, deadline, released/reclaimed flags |
-| Supabase | title, description (via `/api/milestones/metadata`) |
-
-| File | Role |
+| Role | File |
 |------|------|
-| `frontend/app/escrow/page.tsx` | Milestone UI |
-| `frontend/components/MilestoneCard.tsx` | Approve/reclaim card |
-| `frontend/hooks/useConditionalEscrow.ts` | Contract hooks |
-| `frontend/app/api/milestones/route.ts` | List milestones |
+| Contract | [ConditionalEscrow.sol](contracts/ConditionalEscrow.sol) |
+| UI page | [escrow/page.tsx](frontend/app/escrow/page.tsx) |
+| Milestone card | [MilestoneCard.tsx](frontend/components/MilestoneCard.tsx) |
+| Contract hooks | [useConditionalEscrow.ts](frontend/hooks/useConditionalEscrow.ts) |
+| List API | [milestones/route.ts](frontend/app/api/milestones/route.ts) |
+| Metadata API | [milestones/metadata/route.ts](frontend/app/api/milestones/metadata/route.ts) |
+| Keeper create | [keeper/create-milestone/route.ts](frontend/app/api/circle/keeper/create-milestone/route.ts) |
 
 ---
 
 ## Subscriptions
 
-Recurring subscription billing with subscriber-controlled spending caps — providers create plans; subscribers opt in with an approved ceiling; anyone can trigger a charge when due.
+Subscriptions are Arcittance's **recurring billing primitive** — providers publish plans; subscribers opt in with a hard spending cap; anyone can trigger a charge when due. Unlike Stripe-style off-chain billing, caps and charge history are enforced on-chain in [`SubscriptionManager.sol`](contracts/SubscriptionManager.sol).
 
-### Architecture
+### Design intent
+
+Traditional subscription billing (Stripe, PayPal) pulls from a card with opaque backend logic. Arcittance inverts the trust model:
+
+- **Subscriber sets `approvedCap`** — a hard on-chain ceiling on total lifetime spend
+- **Public `charge()` function** — any address can call when due (cron-friendly, keeper-friendly)
+- **ERC-20 allowance model** — subscriber approves USDC once; contract pulls per charge
+- **Revocable at any time** — subscriber calls `revoke()` to stop future charges
+
+This suits SaaS on Arc, marketplace platform fees, and any recurring USDC/EURC billing where the subscriber must retain control over maximum exposure.
+
+### System architecture
+
+```mermaid
+flowchart TB
+  subgraph ui [Subscriptions UI]
+    SubPage[subscriptions/page.tsx]
+    SubCard[SubscriptionCard.tsx]
+    BatchModal[BatchSubscriptionChargeModal.tsx]
+    Hook[useSubscriptionManager.ts]
+  end
+
+  subgraph api [Next.js API]
+    ListAPI[subscriptions/route.ts]
+    MetaAPI[subscriptions/plan-metadata/route.ts]
+    KeeperCharge[keeper/charge/route.ts]
+  end
+
+  subgraph persist [Supabase]
+    PlanMeta[plan_metadata]
+  end
+
+  subgraph chain [Arc On-Chain]
+    SubMgr[SubscriptionManager.sol]
+    USDC[Native USDC]
+  end
+
+  SubPage --> Hook
+  Hook -->|createPlan subscribe charge| SubMgr
+  SubPage --> MetaAPI --> PlanMeta
+  SubPage --> ListAPI --> SubMgr
+  BatchModal --> KeeperCharge --> SubMgr
+  SubMgr -->|transferFrom per charge| USDC
+```
+
+### Plan and subscription lifecycles
+
+```mermaid
+stateDiagram-v2
+  state Plan {
+    [*] --> PlanActive: createPlan
+    PlanActive --> PlanExpired: expiry reached
+    PlanActive --> PlanDeactivated: deactivatePlan
+    PlanExpired --> [*]
+    PlanDeactivated --> [*]
+  }
+
+  state Subscription {
+    [*] --> Subscribed: subscribe with cap
+    Subscribed --> Due: nextChargeDue reached
+    Due --> Subscribed: charge succeeds
+    Subscribed --> Revoked: revoke
+    Revoked --> [*]
+  }
+```
+
+### Charge sequence
 
 ```mermaid
 sequenceDiagram
@@ -517,82 +779,114 @@ sequenceDiagram
   participant Keeper as Circle Keeper optional
 
   Provider->>Contract: createPlan(token, amount, interval)
-  Subscriber->>Contract: approve plus subscribe(planId, cap)
-  Note over Keeper,Contract: When due
+  Subscriber->>Contract: approve USDC cap
+  Subscriber->>Contract: subscribe(planId, approvedCap)
+  Note over Keeper,Contract: When block.timestamp gte nextChargeDue
   alt Normal mode
     Provider->>Contract: charge(subscriptionId)
   else Keeper mode
     Keeper->>Contract: charge(subscriptionId)
   end
-  Contract->>Provider: transferFrom subscriber
+  Contract->>Provider: transferFrom(subscriber, provider, chargeAmount)
+  Contract->>Contract: nextChargeDue += interval
 ```
 
-### Plans and Subscriber Caps
+### On-chain data model
 
-Contract: [`contracts/SubscriptionManager.sol`](contracts/SubscriptionManager.sol)
+Contract: [SubscriptionManager.sol](contracts/SubscriptionManager.sol)
 
-**Plan fields:**
-- `token` — USDC or EURC address
-- `chargeAmount` — per-interval charge
-- `interval` — seconds between charges
-- `maxCharges` — 0 = unlimited
-- `expiry` — 0 = never expires
+**Plan struct:**
 
-**Subscription fields:**
-- `approvedCap` — hard ceiling on total spend (subscriber sets this)
-- `totalCharged` — running total
-- `nextChargeDue` — timestamp for next eligible charge
+| Field | Purpose |
+|-------|---------|
+| `provider` | Address that receives charges |
+| `token` | USDC or EURC address |
+| `chargeAmount` | Amount per billing interval (6 decimals) |
+| `interval` | Seconds between eligible charges |
+| `maxCharges` | Maximum charge count (0 = unlimited) |
+| `chargeCount` | Internal counter of charges executed |
+| `expiry` | Unix timestamp when plan expires (0 = never) |
+| `active` | Whether plan accepts new subscriptions |
 
-### Charge Lifecycle
+**Subscription struct:**
 
-| Function | Actor | Effect |
-|----------|-------|--------|
-| `createPlan(...)` | Provider | Creates billing plan |
-| `subscribe(planId, approvedCap)` | Subscriber | Approves USDC + opts in |
-| `charge(subscriptionId)` | Anyone (when due) | Transfers `chargeAmount` from subscriber → provider |
-| `revoke(subscriptionId)` | Subscriber | Deactivates subscription |
-| `deactivatePlan(planId)` | Provider | Deactivates plan |
+| Field | Purpose |
+|-------|---------|
+| `subscriber` | Address being billed |
+| `planId` | Reference to parent plan |
+| `approvedCap` | Hard ceiling on total spend (set by subscriber) |
+| `totalCharged` | Running total charged so far |
+| `nextChargeDue` | Timestamp when next charge becomes eligible |
+| `active` | Whether subscription can be charged |
 
-Charge succeeds only when:
-- Subscription is active
-- Plan is active and not expired
-- `block.timestamp >= nextChargeDue`
-- `totalCharged + chargeAmount <= approvedCap`
-- Subscriber has sufficient USDC allowance
+**Cap enforcement:** each `charge()` requires `totalCharged + chargeAmount <= approvedCap`. If the cap would be exceeded, the transaction reverts.
+
+### Charge preconditions
+
+A charge succeeds only when **all** of the following hold:
+
+1. Subscription `active == true`
+2. Plan `active == true` and not past `expiry`
+3. `block.timestamp >= nextChargeDue`
+4. Plan `chargeCount < maxCharges` (if maxCharges > 0)
+5. `totalCharged + chargeAmount <= approvedCap`
+6. Subscriber has ERC-20 `allowance >= chargeAmount` to the contract
+7. Subscriber wallet balance >= chargeAmount
+
+If any condition fails, the contract reverts — there is no partial charge or off-chain override.
+
+### Comparison to traditional billing
+
+| Aspect | Stripe / card billing | Arcittance subscriptions |
+|--------|----------------------|--------------------------|
+| Spend cap | Soft limit (disputes) | Hard on-chain `approvedCap` |
+| Who can charge | Merchant backend only | Anyone when due (public `charge()`) |
+| Settlement | Fiat, T+2 | USDC/EURC on Arc, immediate |
+| Revocation | Cancel via API | On-chain `revoke()` in one tx |
+| Audit trail | Merchant database | Arcscan events + on-chain state |
 
 ### Full subscription flow (step-by-step)
 
-1. Navigate to `/subscriptions`
-2. **Provider:** create plan on-chain (token, amount, interval, max charges, expiry)
-3. **Provider:** save title/description via `POST /api/subscriptions/plan-metadata`
-4. **Subscriber:** select plan, set spend cap, approve USDC, call `subscribe(planId, cap)`
-5. When charge is due, **provider** (or anyone) clicks Charge
-6. `charge(subscriptionId)` pulls USDC from subscriber to provider
-7. `nextChargeDue` advances by plan interval
-8. Subscriber can `revoke` at any time
+1. Navigate to [`/subscriptions`](frontend/app/subscriptions/page.tsx)
+2. **Provider:** call `createPlan(token, chargeAmount, interval, maxCharges, expiry)` on-chain
+3. **Provider:** save title/description via [`POST /api/subscriptions/plan-metadata`](frontend/app/api/subscriptions/plan-metadata/route.ts)
+4. **Subscriber:** select plan, set spend cap, approve USDC to contract, call `subscribe(planId, approvedCap)`
+5. When `block.timestamp >= nextChargeDue`, provider (or anyone) clicks **Charge**
+6. `charge(subscriptionId)` executes `transferFrom(subscriber, provider, chargeAmount)`
+7. `totalCharged` increments; `nextChargeDue` advances by plan `interval`
+8. Subscriber can call `revoke(subscriptionId)` at any time to stop future charges
+9. Provider can call `deactivatePlan(planId)` to stop new subscriptions
 
-### Batch Billing (Marketplace)
+### Batch billing (marketplace)
 
-`BatchSubscriptionChargeModal` loops keeper charges for marketplace-style batch billing — useful when a platform operator bills many subscribers in one session.
+[BatchSubscriptionChargeModal.tsx](frontend/components/BatchSubscriptionChargeModal.tsx) loops keeper charges across many due subscriptions in one session — useful for platform operators billing a marketplace roster.
 
-Keeper route: `POST /api/circle/keeper/charge`
+- Route: [`POST /api/circle/keeper/charge`](frontend/app/api/circle/keeper/charge/route.ts)
+- Requires `NEXT_PUBLIC_USE_CIRCLE_KEEPER=true` and funded facilitator wallet
+- Each charge is still an individual on-chain `charge()` call with gas sponsorship
 
-### Subscriptions key files
+### Metadata
 
-| File | Role |
+Plan title and description live in Supabase (not on-chain) via [plan-metadata/route.ts](frontend/app/api/subscriptions/plan-metadata/route.ts). The list API [subscriptions/route.ts](frontend/app/api/subscriptions/route.ts) merges on-chain plan/subscription state with metadata for [SubscriptionCard.tsx](frontend/components/SubscriptionCard.tsx).
+
+### Key files
+
+| Role | File |
 |------|------|
-| `contracts/SubscriptionManager.sol` | On-chain billing |
-| `frontend/app/subscriptions/page.tsx` | Plans + subscriptions UI |
-| `frontend/components/SubscriptionCard.tsx` | Plan/subscription card |
-| `frontend/components/BatchSubscriptionChargeModal.tsx` | Batch keeper charges |
-| `frontend/hooks/useSubscriptionManager.ts` | Contract hooks |
-| `frontend/app/api/subscriptions/route.ts` | List plans + subscriptions |
+| Contract | [SubscriptionManager.sol](contracts/SubscriptionManager.sol) |
+| UI page | [subscriptions/page.tsx](frontend/app/subscriptions/page.tsx) |
+| Plan/subscription card | [SubscriptionCard.tsx](frontend/components/SubscriptionCard.tsx) |
+| Batch keeper charges | [BatchSubscriptionChargeModal.tsx](frontend/components/BatchSubscriptionChargeModal.tsx) |
+| Contract hooks | [useSubscriptionManager.ts](frontend/hooks/useSubscriptionManager.ts) |
+| List API | [subscriptions/route.ts](frontend/app/api/subscriptions/route.ts) |
+| Plan metadata API | [subscriptions/plan-metadata/route.ts](frontend/app/api/subscriptions/plan-metadata/route.ts) |
+| Keeper charge | [keeper/charge/route.ts](frontend/app/api/circle/keeper/charge/route.ts) |
 
 ---
 
 ## Remittance
 
-Consumer remittance is the most Circle-integrated feature. It supports **three funding paths** sharing optional StableFX conversion, compliance screening, leg tracking, and PDF receipts.
+Consumer remittance supports **three funding paths** sharing optional StableFX conversion, compliance screening, leg tracking, and PDF receipts.
 
 | Path | Label | Funding | Delivery |
 |------|-------|---------|----------|
@@ -606,143 +900,365 @@ UI: [`frontend/app/remit/page.tsx`](frontend/app/remit/page.tsx) — step machin
 
 ### Crypto-Native Remittance (Path A)
 
-Path A is the **crypto-native rail**: sender signs in with Circle User Wallets, funds from embedded USDC/EURC balance, optionally converts via StableFX, then sends locally on Arc or cross-chain via CCTP/Gateway.
+Path A is Arcittance's **fully crypto-native remittance rail**. The sender signs in with Circle User Wallets (W3S), holds USDC/EURC in an embedded wallet on Arc, optionally converts via StableFX, then delivers to a recipient locally on Arc or cross-chain via CCTP or Gateway. Every leg is tracked in [SettlementTracker.tsx](frontend/components/SettlementTracker.tsx) with a downloadable PDF receipt.
 
-#### Architecture
+Path A is the most Circle-integrated consumer flow — it exercises User Wallets, StableFX, Bridge Kit, Unified Balance Kit, and compliance screening in a single stepper UI at [`/remit`](frontend/app/remit/page.tsx).
+
+#### End-to-end layer architecture
 
 ```mermaid
-flowchart LR
-  subgraph fundStep [Fund]
-    SignIn[Circle User Sign-In]
-    Wallet[Embedded User Wallet]
-  end
-  subgraph convertStep [Convert Optional]
-    Quote[StableFX RFQ]
-    Debit[Wallet to Facilitator EOA]
-    Trade[Permit2 Settle]
-    Return[Facilitator to Wallet]
-  end
-  subgraph sendStep [Send]
-    Local[Arc Local Transfer]
-    CCTP[CCTP via Facilitator EOA]
-    GW[Gateway via Facilitator SCA]
-  end
-  subgraph trackStep [Track]
-    Legs[SettlementTracker]
-    Receipt[PDF Receipt]
+flowchart TB
+  subgraph ui [Remit UI page.tsx]
+    Stepper[Fund Convert Send Track]
+    WalletPanel[WalletFundPanel.tsx]
+    FxCard[FxQuoteCard.tsx]
+    SendUI[RecipientInput DestinationPicker]
+    Tracker[SettlementTracker.tsx]
   end
 
-  SignIn --> Wallet
-  Wallet --> Quote --> Debit --> Trade --> Return
-  Wallet --> Local
-  Wallet --> CCTP
-  Wallet --> GW
-  Local --> Legs
-  CCTP --> Legs
-  GW --> Legs
-  Legs --> Receipt
+  subgraph api [Next.js API Routes]
+    UserAPI[circle/user/*]
+    WalletBal[remit/wallet/balance]
+    FxAPI[fx/quotes execute path-a/*]
+    SendAPI[circle/remit/send]
+    CrossAPI[circle/remit/cross-chain]
+    Compliance[circle/compliance/screen]
+    Receipt[remittances/id/receipt]
+  end
+
+  subgraph circlePkg [circle/src clients]
+    UserClient[user-client.ts]
+    SFXClient[stablefx-client.ts]
+    RemitOrch[remittance-orchestrator.ts]
+    CCTPClient[cctp-client.ts]
+    GWClient[gateway-client.ts]
+    FacTransfer[facilitator-transfer.ts]
+  end
+
+  subgraph circleAPI [Circle APIs]
+    W3S[User Wallets W3S]
+    StableFX[StableFX RFQ]
+    BridgeKit[Bridge Kit CCTP]
+    Gateway[Unified Balance Kit]
+  end
+
+  subgraph chains [Chains]
+    Arc[Arc Testnet]
+    Dest[AVAX ARB Base]
+  end
+
+  Stepper --> WalletPanel --> UserAPI --> UserClient --> W3S
+  WalletPanel --> WalletBal
+  FxCard --> FxAPI --> SFXClient --> StableFX
+  SendUI --> SendAPI
+  SendUI --> CrossAPI --> RemitOrch
+  RemitOrch --> CCTPClient --> BridgeKit --> Dest
+  RemitOrch --> GWClient --> Gateway --> Dest
+  SendAPI --> Arc
+  Tracker --> Receipt
+  Compliance --> SendUI
 ```
 
 #### UI stepper
 
 | Step | Component | Action |
 |------|-----------|--------|
-| Fund | `WalletFundPanel` | Circle sign-in; balance from `/api/remit/wallet/balance` |
-| Convert | `FxQuoteCard` | Optional USDC↔EURC via StableFX |
-| Send | `RecipientInput`, `DestinationPicker`, `FeePanel` | Local, CCTP, or Gateway send |
-| Track | `SettlementTracker`, `ReceiptDownload` | Leg status + PDF receipt |
+| Fund | [WalletFundPanel.tsx](frontend/components/WalletFundPanel.tsx) | Circle sign-in; balance from [wallet/balance/route.ts](frontend/app/api/remit/wallet/balance/route.ts) |
+| Convert | [FxQuoteCard.tsx](frontend/components/FxQuoteCard.tsx) | Optional USDC↔EURC via StableFX |
+| Send | [RecipientInput.tsx](frontend/components/RecipientInput.tsx), [DestinationPicker.tsx](frontend/components/DestinationPicker.tsx), [FeePanel.tsx](frontend/components/FeePanel.tsx) | Local, CCTP, or Gateway send |
+| Track | [SettlementTracker.tsx](frontend/components/SettlementTracker.tsx), [ReceiptDownload.tsx](frontend/components/ReceiptDownload.tsx) | Leg status + PDF receipt |
 
-#### Path A flow (step-by-step)
+#### Sign-in and wallet provisioning
 
-1. **Sign in** — `RemittanceWalletConnector` → Circle W3S OTP/PIN flow
-2. **Fund** — embedded wallet holds USDC/EURC on Arc
-3. **Convert (optional):**
-   - `POST /api/fx/quotes` — live StableFX quote
-   - `POST /api/fx/path-a/prepare-debit` — challenge: wallet → facilitator EOA
-   - Web SDK `executeCircleChallenge`
-   - `POST /api/fx/path-a/wait-debit` — confirm debit
-   - `POST /api/fx/execute` — NDJSON stream: StableFX settle; facilitator returns output token via `facilitator-transfer.ts`
-4. **Send:**
-   - **Arc local:** `POST /api/circle/remit/send` (prepare → challenge → complete)
-   - **Cross-chain:** `POST /api/circle/remit/cross-chain` (prepare → challenge → bridge)
-     - CCTP (`routingMethod=0`): user → facilitator **EOA** → Bridge Kit burn/mint
-     - Gateway (`routingMethod=1`): user → facilitator **SCA** → deposit unified balance → spend on destination
-5. **Compliance** — `POST /api/circle/compliance/screen` before send
-6. **Track** — `SettlementTracker` shows fund, FX, bridge, payout legs
-7. **Receipt** — `GET /api/remittances/[id]/receipt` → PDF download
+Path A requires Circle User Wallets sign-in via [RemittanceWalletConnector.tsx](frontend/components/RemittanceWalletConnector.tsx):
+
+1. [`POST /api/circle/user/initialize`](frontend/app/api/circle/user/initialize/route.ts) — create or resume user
+2. [`POST /api/circle/user/request-otp`](frontend/app/api/circle/user/request-otp/route.ts) — email OTP
+3. [`POST /api/circle/user/session`](frontend/app/api/circle/user/session/route.ts) — acquire session token
+4. [`GET /api/circle/user/wallet`](frontend/app/api/circle/user/wallet/route.ts) — embedded wallet on Arc
+
+Implementation: [user-client.ts](circle/src/user-client.ts), [RemittanceWalletContext.tsx](frontend/components/RemittanceWalletContext.tsx), Web SDK via [execute-challenge.ts](frontend/lib/circle/execute-challenge.ts).
+
+#### StableFX convert leg (optional)
+
+When the sender wants USDC↔EURC before sending:
+
+| Step | API route | What happens |
+|------|-----------|--------------|
+| 1 | [fx/quotes/route.ts](frontend/app/api/fx/quotes/route.ts) | Live StableFX RFQ; balance check against wallet |
+| 2 | [fx/path-a/prepare-debit/route.ts](frontend/app/api/fx/path-a/prepare-debit/route.ts) | Challenge: user wallet → facilitator EOA |
+| 3 | Browser Web SDK | User executes Circle transfer challenge |
+| 4 | [fx/path-a/wait-debit/route.ts](frontend/app/api/fx/path-a/wait-debit/route.ts) | Confirm debit landed on facilitator |
+| 5 | [fx/execute/route.ts](frontend/app/api/fx/execute/route.ts) | NDJSON stream: RFQ → EIP-712 sign → Permit2 fund → on-chain settle |
+| 6 | [facilitator-transfer.ts](circle/src/facilitator-transfer.ts) | Facilitator sends output token back to user wallet |
+
+#### Arc-local send
+
+For recipients on Arc (`destinationChainId = 0`):
+
+1. [`POST /api/circle/compliance/screen`](frontend/app/api/circle/compliance/screen/route.ts) — blocklist check
+2. [`POST /api/circle/remit/send`](frontend/app/api/circle/remit/send/route.ts) — prepare transfer challenge
+3. Web SDK executes challenge — user wallet sends USDC/EURC directly to recipient on Arc
+4. Remittance row persisted via [remittances/route.ts](frontend/app/api/remittances/route.ts)
+
+#### Cross-chain send (CCTP vs Gateway)
+
+For recipients on Avalanche Fuji, Arbitrum Sepolia, or Base Sepolia, orchestration runs through [remittance-orchestrator.ts](circle/src/remittance-orchestrator.ts):
+
+**Step 1 — Prepare debit:** `prepareCrossChainRemittance()` creates a Circle transfer challenge. User wallet debits USDC to the facilitator address on Arc.
+
+**Step 2 — Complete:** after Web SDK challenge, `completeCrossChainRemittance()` branches on `routingMethod`:
+
+| routingMethod | Facilitator wallet | Off-chain action |
+|---------------|-------------------|------------------|
+| `0` (CCTP) | **EOA** (`FACILITATOR_PRIVATE_KEY`) | [cctp-client.ts](circle/src/cctp-client.ts) Bridge Kit burn on Arc → mint on destination |
+| `1` (Gateway) | **SCA** (`CIRCLE_FACILITATOR_WALLET_ID`) | [gateway-client.ts](circle/src/gateway-client.ts) deposit unified balance → spend on destination |
+
+Why two wallets? From [remittance-orchestrator.ts](circle/src/remittance-orchestrator.ts):
+
+> CCTP burns from the facilitator EOA (private-key Bridge Kit adapter). Gateway deposit/spend uses the Circle SCA wallet — remit debit must land there.
+
+```mermaid
+sequenceDiagram
+  participant User as User Wallet
+  participant API as remit/cross-chain API
+  participant Orch as remittance-orchestrator
+  participant EOA as Facilitator EOA
+  participant SCA as Facilitator SCA
+  participant BK as Bridge Kit
+  participant GW as Gateway Kit
+  participant Dest as Destination Chain
+
+  User->>API: prepareCrossChainRemittance
+  API-->>User: challengeId
+  User->>User: Web SDK execute challenge
+  User->>API: completeCrossChainRemittance
+
+  alt routingMethod 0 CCTP
+    API->>Orch: debit to EOA
+    Orch->>BK: bridgeUsdc burn mint
+    BK->>Dest: USDC minted
+  else routingMethod 1 Gateway
+    API->>Orch: debit to SCA
+    Orch->>GW: deposit plus spend
+    GW->>Dest: USDC delivered
+  end
+```
+
+API route: [remit/cross-chain/route.ts](frontend/app/api/circle/remit/cross-chain/route.ts).
 
 #### Facilitator dual-wallet model
 
-| Wallet | Key env | Used for |
+| Wallet | Env key | Used for |
 |--------|---------|----------|
-| Facilitator EOA | `FACILITATOR_PRIVATE_KEY` | CCTP burns, StableFX signing, Path A debit target |
-| Facilitator SCA | `CIRCLE_FACILITATOR_WALLET_ID` | Gateway deposit/spend; cross-chain Gateway routing |
+| Facilitator EOA | `FACILITATOR_PRIVATE_KEY` | CCTP burns via Bridge Kit; StableFX EIP-712 signing; Path A FX debit target |
+| Facilitator SCA | `CIRCLE_FACILITATOR_WALLET_ID` | Gateway unified-balance deposit + spend; cross-chain Gateway routing debits |
 
-#### Path A constraints
+Both must be funded with Arc USDC for their respective paths to succeed.
 
-- **EURC:** Arc same-chain only — CCTP and Gateway are USDC-only
-- **USDC:** all routing methods supported
-- Compliance blocklist configurable via `CIRCLE_COMPLIANCE_BLOCKLIST`
+#### Compliance, tracking, and receipts
+
+- **Compliance gate** — [compliance.ts](circle/src/compliance.ts) blocklist via `CIRCLE_COMPLIANCE_BLOCKLIST` runs before every send
+- **Leg tracking** — [SettlementTracker.tsx](frontend/components/SettlementTracker.tsx) shows fund, FX, bridge, and delivery legs with tx hashes and explorer links
+- **Persistence** — remittance rows in Supabase via [remittances/route.ts](frontend/app/api/remittances/route.ts)
+- **PDF receipt** — [remittances/[id]/receipt/route.ts](frontend/app/api/remittances/[id]/receipt/route.ts) generates downloadable receipt via [generateReceipt.ts](frontend/lib/receipts/generateReceipt.ts)
+
+#### EURC constraint
+
+EURC is supported for **Arc same-chain sends only**. CCTP and Gateway routing are USDC-only — the UI enforces this in [DestinationPicker.tsx](frontend/components/DestinationPicker.tsx).
+
+#### Path A full flow (step-by-step)
+
+1. **Sign in** — [RemittanceWalletConnector.tsx](frontend/components/RemittanceWalletConnector.tsx) → Circle W3S OTP/PIN
+2. **Fund** — embedded wallet holds USDC/EURC; balance from [wallet/balance/route.ts](frontend/app/api/remit/wallet/balance/route.ts)
+3. **Convert (optional)** — 5-step StableFX chain above
+4. **Send** — compliance screen → local or cross-chain send
+5. **Track** — [SettlementTracker.tsx](frontend/components/SettlementTracker.tsx) polls leg status
+6. **Receipt** — PDF download from receipt API
+
+#### Path A key files
+
+| Role | File |
+|------|------|
+| UI orchestrator | [remit/page.tsx](frontend/app/remit/page.tsx) |
+| Cross-chain orchestrator | [remittance-orchestrator.ts](circle/src/remittance-orchestrator.ts) |
+| User Wallets client | [user-client.ts](circle/src/user-client.ts) |
+| StableFX client | [stablefx-client.ts](circle/src/stablefx-client.ts) |
+| CCTP client | [cctp-client.ts](circle/src/cctp-client.ts) |
+| Gateway client | [gateway-client.ts](circle/src/gateway-client.ts) |
+| Arc-local send API | [remit/send/route.ts](frontend/app/api/circle/remit/send/route.ts) |
+| Cross-chain send API | [remit/cross-chain/route.ts](frontend/app/api/circle/remit/cross-chain/route.ts) |
 
 ---
 
 ### Bank-Based Remittance (Path B)
 
-Path B's **intended shape** was:
+Path B is Arcittance's **fiat-on-ramp remittance rail** — designed for senders who fund from a bank wire rather than a crypto wallet. The intended corridor is:
 
 ```
-sender's bank wire → Circle Mint credits fiat → mint USDC onchain → app ledger → Circle Payouts to recipient
+sender bank wire → Circle Mint credits fiat → mint USDC on Arc → app ledger attributes balance → deliver via Payouts (crypto) or Mint fiat wire (bank)
 ```
 
-#### Architecture (intended)
+Path B exercises Circle Mint (wire ramp + on-chain mint), Custody, Payouts, Address Book, and optionally StableFX. The UI follows Fund → Convert → Send → Track in [BankFundPanel.tsx](frontend/components/BankFundPanel.tsx).
+
+> **Sandbox status:** Phase 1 (wire-bank create) is blocked in Circle sandbox. See [Path B Sandbox Blocker](#path-b-sandbox-blocker-circle-wire-api). Phases 2–5 were verified independently via Payins top-up.
+
+#### Multi-phase architecture
 
 ```mermaid
-flowchart LR
-  Wire[Sender Bank Wire]
-  MintCredit[Circle Mint Fiat Credit]
-  MintOnchain[mintToOnchainWallet]
-  Ledger[mint_ledger per user]
-  SFX[StableFX optional]
-  Payout[Payouts API]
-  Fiat[Fiat Wire Payout]
+flowchart TB
+  subgraph phase1 [Phase 1 Wire On-Ramp — BLOCKED in sandbox]
+    User[Sender in BankFundPanel]
+    API[bank/fund/route.ts]
+    Ramp[ramp-client.ts]
+    WireAPI["POST /v1/businessAccount/banks/wires"]
+    Instr[getWireInstructions]
+    SimWire[simulateWireDeposit]
+    Poll[pollDepositStatus]
+    User --> API --> Ramp
+    Ramp --> WireAPI
+    Ramp --> Instr --> SimWire --> Poll
+  end
 
-  Wire --> MintCredit --> MintOnchain --> Ledger
-  Ledger --> SFX
-  Ledger --> Payout
-  Ledger --> Fiat
+  subgraph phase2 [Phase 2 Mint to On-Chain]
+    MintClient[mint-client.ts]
+    Allowlist[createRecipientAddress]
+    MintOnchain[mintToOnchainWallet]
+    FacilitatorEOA[Facilitator EOA on Arc]
+    Poll --> MintClient --> Allowlist --> MintOnchain --> FacilitatorEOA
+  end
+
+  subgraph phase3 [Phase 3 Ledger Attribution]
+    DB[(mint_ledger Supabase)]
+    Attr[getAvailableLedgerBalanceUsdc]
+    FacilitatorEOA --> DB
+    DB --> Attr
+  end
+
+  subgraph phase4 [Phase 4 Optional Convert]
+    SFX[StableFX via fx/execute]
+    Attr --> SFX
+  end
+
+  subgraph phase5 [Phase 5 Deliver]
+    Crypto[Payouts API crypto delivery]
+    Fiat[Mint fiat wire payout]
+    SFX --> Crypto
+    SFX --> Fiat
+    Attr --> Crypto
+    Attr --> Fiat
+  end
 ```
 
-#### Path B flow (step-by-step — as designed)
+#### Phase 1 — Wire on-ramp (fund)
 
-1. User selects **Path B · Bank** in remit UI
-2. **Fund** — `POST /api/remit/bank/fund`:
-   - Create `mint_ledger` row (pending)
-   - `ramp-client`: create sandbox wire bank → wire instructions → simulate deposit → poll
-   - `mint-client`: allowlist facilitator address → `mintToOnchainWallet` (USD → USDC on Arc)
-   - Ledger status → `minted`
-3. **Convert (optional)** — StableFX USDC↔EURC against ledger balance
-4. **Send — crypto delivery:**
-   - Register recipient in Address Book → `/api/remit/recipients`
-   - Create remittance record → `/api/remittances`
-   - Execute payout → `/api/remit/payouts` (Circle Stablecoin Payouts from custody wallet)
-5. **Send — fiat delivery:**
-   - `/api/remit/fiat/payout` → `createBusinessBankPayout` (Mint wire to destination bank)
-6. **Track** — poll payout status; download receipt
+Mapped to [bank/fund/route.ts](frontend/app/api/remit/bank/fund/route.ts) and [ramp-client.ts](circle/src/ramp-client.ts):
 
-#### Implementation files
+| Step | Function / API | What happens |
+|------|----------------|--------------|
+| 1 | `createMintLedgerEntry()` | Supabase row created with status `pending` |
+| 2 | `createSandboxBankAccount()` | `POST /v1/businessAccount/banks/wires` — **fails with HTTP 500 in sandbox** |
+| 3 | `getWireInstructions(bankId)` | Returns tracking ref + virtual account number for wire |
+| 4 | `simulateWireDeposit()` | Sandbox mock of incoming wire to Mint |
+| 5 | `pollDepositStatus()` | Poll until deposit status is complete (45s timeout) |
+| 6 | Ledger updated | Status → `deposited`; deposit ID stored in metadata |
 
-| File | Role |
+If step 2 fails (current sandbox behavior), the entire Path B fund flow cannot proceed. The codebase detects this via `isCircleEftSandboxOutage()` in [ramp-client.ts](circle/src/ramp-client.ts).
+
+#### Phase 2 — Mint to on-chain USDC
+
+After fiat credit lands in Circle Mint, USDC must be minted to an on-chain address:
+
+| Step | Function | What happens |
+|------|----------|--------------|
+| 1 | `createRecipientAddress()` | Allowlist facilitator EOA in Mint Console |
+| 2 | `mintToOnchainWallet()` | Convert Mint USD balance → USDC on Arc at facilitator EOA |
+| 3 | Poll business transfer | Wait for mint transfer to complete |
+| 4 | Ledger updated | Status → `minted`; on-chain tx hash stored |
+
+Implementation: [mint-client.ts](circle/src/mint-client.ts). Facilitator EOA from `FACILITATOR_PRIVATE_KEY` via [wallet-adapters.ts](circle/src/wallet-adapters.ts).
+
+#### Phase 3 — Ledger attribution
+
+Path B uses a **shared facilitator USDC pool** on-chain. Multiple senders can fund through the same facilitator address without balance confusion:
+
+- Each fund creates a row in `mint_ledger` (Supabase) keyed by `sender_user_id`
+- `getAvailableLedgerBalanceUsdc(userId)` in [mint_ledger.ts](db/src/repositories/mint_ledger.ts) computes how much of the shared pool belongs to this sender
+- StableFX convert and send steps check against ledger-attributed balance, not raw on-chain facilitator balance
+
+This mirrors how a real Mint business account would work — one custody pool, per-customer attribution in the app layer.
+
+#### Phase 4 — Optional StableFX convert
+
+Same StableFX flow as Path A, but funding source is **ledger balance** (facilitator EOA attributed to user) rather than user wallet:
+
+- [`POST /api/fx/quotes`](frontend/app/api/fx/quotes/route.ts) — quote with ledger balance check
+- [`POST /api/fx/execute`](frontend/app/api/fx/execute/route.ts) — facilitator EOA signs and settles trade
+- Converted USDC/EURC remains attributed to sender in ledger
+
+#### Phase 5a — Crypto delivery (Payouts)
+
+The primary delivery path — USDC to recipient wallet on any supported chain:
+
+| Step | Route / client | What happens |
+|------|----------------|--------------|
+| 1 | [recipients/route.ts](frontend/app/api/remit/recipients/route.ts) | Register recipient in Circle Address Book |
+| 2 | [remittances/route.ts](frontend/app/api/remittances/route.ts) | Create remittance record in Supabase |
+| 3 | [payouts/route.ts](frontend/app/api/remit/payouts/route.ts) | Create Circle Stablecoin Payout from custody wallet |
+| 4 | [payouts-client.ts](circle/src/payouts-client.ts) | Specify chain, amount, currency; poll terminal status |
+| 5 | [payouts/[id]/route.ts](frontend/app/api/remit/payouts/[id]/route.ts) | Poll until complete/failed |
+| 6 | Receipt | PDF via [receipt/route.ts](frontend/app/api/remittances/[id]/receipt/route.ts) |
+
+Payouts source wallet: primary custody wallet from [custody-client.ts](circle/src/custody-client.ts).
+
+Supported delivery chains: Arc, Avalanche Fuji, Arbitrum Sepolia, Base Sepolia ([supported-chains.ts](circle/src/supported-chains.ts)).
+
+#### Phase 5b — Fiat delivery (Mint wire payout)
+
+Alternative delivery — wire USDC value back out as fiat to a destination bank:
+
+| Step | Route / client | What happens |
+|------|----------------|--------------|
+| 1 | [fiat/payout/route.ts](frontend/app/api/remit/fiat/payout/route.ts) | Initiate Mint business bank payout |
+| 2 | `createBusinessBankPayout()` in [mint-client.ts](circle/src/mint-client.ts) | Wire from Mint business account to destination bank ID |
+
+Requires a registered destination bank ID in Mint Console.
+
+#### UI flow
+
+[BankFundPanel.tsx](frontend/components/BankFundPanel.tsx) drives the Fund step. After funding, the remit stepper continues:
+
+| Step | Action |
+|------|--------|
+| Fund | Wire amount → Mint credit → mint to chain → ledger credit |
+| Convert | Optional StableFX against ledger balance |
+| Send | Choose crypto (Payouts) or fiat (Mint wire) delivery |
+| Track | Poll payout status; show legs in [SettlementTracker.tsx](frontend/components/SettlementTracker.tsx) |
+
+#### Circle products touched
+
+| Product | Phase | Client |
+|---------|-------|--------|
+| Mint Wire Ramp | 1 | [ramp-client.ts](circle/src/ramp-client.ts) |
+| Mint On-chain Mint | 2 | [mint-client.ts](circle/src/mint-client.ts) |
+| Custody | 5a | [custody-client.ts](circle/src/custody-client.ts) |
+| Payouts + Address Book | 5a | [payouts-client.ts](circle/src/payouts-client.ts) |
+| Mint Fiat Payout | 5b | [mint-client.ts](circle/src/mint-client.ts) |
+| StableFX | 4 | [stablefx-client.ts](circle/src/stablefx-client.ts) |
+
+#### Path B key files
+
+| Role | File |
 |------|------|
-| `circle/src/ramp-client.ts` | Sandbox wire bank, wire sim, deposit polling |
-| `circle/src/mint-client.ts` | Allowlist, mintToOnchainWallet, fiat bank payout |
-| `circle/src/payouts-client.ts` | Multi-chain USDC payout |
-| `circle/src/custody-client.ts` | Primary payments wallet as Payouts source |
-| `db/src/repositories/mint_ledger.ts` | Per-user Mint balance attribution |
-| `frontend/components/BankFundPanel.tsx` | Path B fund UI |
-
-#### Ledger attribution
-
-Path B uses a shared facilitator USDC pool on-chain. `getAvailableLedgerBalanceUsdc(userId)` attributes Mint credits per sender via the `mint_ledger` table — so multiple users can share one facilitator address without balance confusion.
+| Fund API | [bank/fund/route.ts](frontend/app/api/remit/bank/fund/route.ts) |
+| Wire ramp client | [ramp-client.ts](circle/src/ramp-client.ts) |
+| Mint client | [mint-client.ts](circle/src/mint-client.ts) |
+| Payouts client | [payouts-client.ts](circle/src/payouts-client.ts) |
+| Custody client | [custody-client.ts](circle/src/custody-client.ts) |
+| Ledger repository | [mint_ledger.ts](db/src/repositories/mint_ledger.ts) |
+| Fund UI | [BankFundPanel.tsx](frontend/components/BankFundPanel.tsx) |
+| Payouts API | [payouts/route.ts](frontend/app/api/remit/payouts/route.ts) |
+| Fiat payout API | [fiat/payout/route.ts](frontend/app/api/remit/fiat/payout/route.ts) |
 
 ---
 
@@ -1007,97 +1523,147 @@ Arcittance integrates **every major Circle product** relevant to programmable st
 
 ## Contracts on Arc
 
-All production contracts are deployed on Arc testnet. Solidity version: **0.8.30** with optimizer (200 runs) and `viaIR`.
+Arcittance's on-chain layer is a **system of interconnected Solidity modules** deployed on Arc testnet (chain ID `5042002`, CCTP domain `26`). Contracts share a common cross-chain router, a stateless payroll scheduler, and native USDC/EURC settlement. Solidity **0.8.30** with optimizer (200 runs) and `viaIR`.
 
-### Contract reference
+Source: [`deployments/arc/addresses.json`](deployments/arc/addresses.json) · Compiler config: [`hardhat.config.ts`](hardhat.config.ts)
 
-#### PayrollOrgRegistry
+### How the contracts relate
 
-| | |
-|---|---|
-| **Address** | [`0x729a...a2E5`](https://testnet.arcscan.app/address/0x729a51BB90A72f628225Ca6a7583be51C7D5a2E5) |
-| **Role** | Organisation registry + vault factory |
-| **Key functions** | `createOrganization(name)`, `createVault(orgId)`, `getOrganization(orgId)` |
-| **Deploys** | New `PayrollVault` per org; auto-authorizes on router |
+```mermaid
+flowchart TB
+  Registry[PayrollOrgRegistry] -->|createVault| PV[PayrollVault instances]
+  PV --> Scheduler[PayrollScheduler]
+  PV --> Router[CrossChainRouter]
+  RV[RemittanceVault] --> Router
+  Router --> TM[CCTP TokenMessenger V2]
+  Escrow[ConditionalEscrow]
+  SubMgr[SubscriptionManager]
+  FXE[FXSettlementEscrow]
+  Orch[Off-chain orchestrator] --> Router
+```
 
-#### PayrollVault (per-org, factory-deployed)
+Payroll uses a **factory pattern** — one registry deploys many vaults. Remittance, escrow, and subscriptions are standalone contracts. CrossChainRouter is the shared hub for any vault that needs CCTP or Gateway routing.
 
-| | |
-|---|---|
-| **Role** | On-chain payroll vault with local and cross-chain payments |
-| **Key functions** | `deposit`, `registerEmployee`, `runPayroll`, `deactivateEmployee` |
-| **Integrates** | `PayrollScheduler` (due filter), `CrossChainRouter` (cross-chain) |
-| **Employee struct** | wallet, salary, token, interval, cap, destinationChainId, routingMethod, transferSpeed |
+---
 
-`destinationChainId = 0` means Arc-local. `routingMethod`: 0 = CCTP, 1 = Gateway.
+### PayrollOrgRegistry
 
-#### PayrollScheduler
+**Address:** [0x729a51BB90A72f628225Ca6a7583be51C7D5a2E5](https://testnet.arcscan.app/address/0x729a51BB90A72f628225Ca6a7583be51C7D5a2E5)  
+**Source:** [PayrollOrgRegistry.sol](contracts/PayrollOrgRegistry.sol)
 
-| | |
-|---|---|
-| **Address** | [`0x4292...59C1`](https://testnet.arcscan.app/address/0x4292f03Db3716A5Ed44974DD3e5564f26b8359C1) |
-| **Role** | Stateless due-date and cap filter |
-| **Key function** | `computePayroll(employees, salaries, nextDue, caps, timestamp)` |
-| **Properties** | Pure, no storage, no admin key |
+PayrollOrgRegistry is the **entry point for payroll**. Employers call `createOrganization(name)` to register an on-chain org, then `createVault(orgId)` to factory-deploy a dedicated PayrollVault. The registry stores an `Organization` struct per org: name, creator address, vault address, creation timestamp, and whether a vault has been deployed.
 
-#### CrossChainRouter
+The critical design choice is **org isolation** — each organisation gets its own vault contract with its own employee roster and USDC balance. When `createVault` runs, it instantiates a new [PayrollVault.sol](contracts/PayrollVault.sol), transfers ownership to the org creator, and calls `CrossChainRouter.authorizeVault(vaultAddr, true)` so the new vault can route cross-chain payments. One creator can own multiple orgs via `_creatorOrgIds` mapping.
 
-| | |
-|---|---|
-| **Address** | [`0xd582...595d`](https://testnet.arcscan.app/address/0xd582C4173aff5c04F64EAD42c4E12f3e5f93595d) |
-| **Role** | CCTP + Gateway routing hub for vaults |
-| **Key functions** | `routeCCTP`, `routeGateway`, `authorizeVault`, `markGatewayFulfilled` |
-| **Integrates** | CCTP TokenMessenger V2, off-chain orchestrator |
-| **Events** | `RouteCCTP`, `GatewayPayoutRequested`, `GatewayPayoutFulfilled` |
+The app interacts with this contract through [usePayrollOrgRegistry.ts](frontend/hooks/usePayrollOrgRegistry.ts) and [PayrollOrgPanel.tsx](frontend/components/PayrollOrgPanel.tsx).
 
-#### ConditionalEscrow
+---
 
-| | |
-|---|---|
-| **Address** | [`0xEe61...0e4b`](https://testnet.arcscan.app/address/0xEe618c3E0855c820eD02F10A3bDA876991120e4b) |
-| **Role** | Milestone-based conditional payment escrow |
-| **Key functions** | `createMilestone`, `approveMilestone`, `reclaimExpired` |
-| **Governance** | N-of-M approvers; payer reclaim after dispute deadline |
+### PayrollVault (per-org, factory-deployed)
 
-#### SubscriptionManager
+**Source:** [PayrollVault.sol](contracts/PayrollVault.sol) — address varies per org (deployed by registry)
 
-| | |
-|---|---|
-| **Address** | [`0x2cC1...6de0`](https://testnet.arcscan.app/address/0x2cC1fF23af1CFD0531AC568B7cAC709De1aE6de0) |
-| **Role** | Recurring subscription billing |
-| **Key functions** | `createPlan`, `subscribe`, `charge`, `revoke`, `deactivatePlan` |
-| **Caps** | Subscriber sets `approvedCap` — hard ceiling on total spend |
+PayrollVault is the **core payroll engine**. Each instance is owned by an employer and holds USDC for salary disbursement. Key responsibilities:
 
-#### RemittanceVault
+- **`deposit(token, amount)`** — employer funds the vault via ERC-20 transferFrom
+- **`registerEmployee(...)`** — adds an employee with salary, pay interval, approved cap, destination chain, routing method, and transfer speed
+- **`runPayroll()`** — queries PayrollScheduler for due employees, then pays each one
 
-| | |
-|---|---|
-| **Address** | [`0x1A3c...7875`](https://testnet.arcscan.app/address/0x1A3c1901449C8aEF0c5e23a68d68F910EE607875) |
-| **Role** | One-off consumer remittance sends (on-chain path) |
-| **Key functions** | `sendRemittance`, `setFeeBps`, `setTreasury` |
-| **Integrates** | `CrossChainRouter` for cross-chain delivery |
+The `Employee` struct stores everything needed for a payout: wallet, salary, token, interval, nextPaymentDue, approvedCap, destinationChainId, routingMethod, transferSpeed, and active flag.
 
-#### FXSettlementEscrow
+Inside `runPayroll()`, the vault builds arrays of active employees, calls `PayrollScheduler.computePayroll()` to filter due employees within caps, then for each due employee either:
+- **`destinationChainId == 0`** — direct `IERC20.transfer` on Arc (local payout)
+- **`destinationChainId > 0`** — approve USDC to CrossChainRouter and call `routeCCTP` or `routeGateway`
 
-| | |
-|---|---|
-| **Address** | [`0xE028...5987`](https://testnet.arcscan.app/address/0xE02800F2BEAC8675EbBd7d23F795C62288085987) |
-| **Role** | Thin PvP registry linking remittance ↔ StableFX trade |
-| **Key functions** | `open`, `confirmFxOnChain`, `confirmPayoutOnChain` |
-| **Note** | Does not custody USDC — records both legs for payment-vs-payment tracking |
+Cross-chain CCTP payouts emit `RouteCCTP` events that the off-chain orchestrator ([cross-chain-orchestrator.ts](circle/src/cross-chain-orchestrator.ts)) picks up to complete Bridge Kit burn/mint on the destination chain.
 
-### Token addresses
+---
+
+### PayrollScheduler
+
+**Address:** [0x4292f03Db3716A5Ed44974DD3e5564f26b8359C1](https://testnet.arcscan.app/address/0x4292f03Db3716A5Ed44974DD3e5564f26b8359C1)  
+**Source:** [PayrollScheduler.sol](contracts/PayrollScheduler.sol)
+
+PayrollScheduler is intentionally **minimal and stateless**. It exposes one pure function — `computePayroll(employees, salaries, nextPaymentDue, approvedCaps, timestamp)` — that returns which employees are due for payment. An employee is due when `nextPaymentDue <= currentTimestamp` and `salary <= approvedCap`.
+
+There is no storage, no admin key, and no token access. This separation keeps scheduling logic auditable and upgradeable independently of vault balances. The scheduler cannot move funds — it only answers "who should be paid right now?"
+
+---
+
+### CrossChainRouter
+
+**Address:** [0xd582C4173aff5c04F64EAD42c4E12f3e5f93595d](https://testnet.arcscan.app/address/0xd582C4173aff5c04F64EAD42c4E12f3e5f93595d)  
+**Source:** [CrossChainRouter.sol](contracts/CrossChainRouter.sol)
+
+CrossChainRouter is the **shared cross-chain hub** for PayrollVault and RemittanceVault. Authorized vaults call it to route USDC to other chains via two methods:
+
+- **`routeCCTP(token, amount, destinationDomain, recipient)`** — point-to-point CCTP burn via TokenMessenger V2. Emits `RouteCCTP` with a nonce for off-chain Bridge Kit completion.
+- **`routeGateway(token, amount, destinationDomain, recipient)`** — records a Gateway payout request. Emits `GatewayPayoutRequested`. Off-chain orchestrator deposits to unified balance and spends on destination, then calls `markGatewayFulfilled`.
+
+Access control uses `authorizedVaults` mapping — only vaults registered by PayrollOrgRegistry (or manually authorized) can call routing functions. An `orchestrator` address can mark Gateway payouts fulfilled. CCTP uses `minFinalityThreshold: 1000` for fast transfers from Arc testnet.
+
+This contract is the on-chain half of cross-chain payroll and remittance — the off-chain half is Bridge Kit / Unified Balance Kit in the `circle/` package.
+
+---
+
+### ConditionalEscrow
+
+**Address:** [0xEe618c3E0855c820eD02F10A3bDA876991120e4b](https://testnet.arcscan.app/address/0xEe618c3E0855c820eD02F10A3bDA876991120e4b)  
+**Source:** [ConditionalEscrow.sol](contracts/ConditionalEscrow.sol)
+
+ConditionalEscrow implements **milestone-based conditional payments**. A payer locks USDC (or EURC) by calling `createMilestone(payee, token, amount, approvers[], approvalsRequired, disputeDeadline)`. Funds sit in the contract until enough approvers call `approveMilestone(id)` — when `approvalCount >= approvalsRequired`, the contract auto-transfers to the payee.
+
+If approvers never release, the payer can call `reclaimExpired(id)` after `disputeDeadline` passes. The approver list is immutable after creation. ReentrancyGuard protects all state changes. Double-approval is prevented via a per-milestone `hasApproved` mapping.
+
+This contract encodes freelance/marketplace escrow rules entirely on-chain — no admin can override release or reclaim decisions.
+
+---
+
+### SubscriptionManager
+
+**Address:** [0x2cC1fF23af1CFD0531AC568B7cAC709De1aE6de0](https://testnet.arcscan.app/address/0x2cC1fF23af1CFD0531AC568B7cAC709De1aE6de0)  
+**Source:** [SubscriptionManager.sol](contracts/SubscriptionManager.sol)
+
+SubscriptionManager handles **recurring billing with subscriber-controlled caps**. Providers create plans (`createPlan`) specifying token, charge amount, interval, max charges, and expiry. Subscribers opt in via `subscribe(planId, approvedCap)` after approving USDC to the contract.
+
+The public `charge(subscriptionId)` function can be called by anyone when a subscription is due — it executes `transferFrom(subscriber, provider, chargeAmount)` and advances `nextChargeDue`. The subscriber's `approvedCap` is a hard ceiling: if `totalCharged + chargeAmount > approvedCap`, the charge reverts.
+
+Subscribers can `revoke()` at any time. Providers can `deactivatePlan()`. This design makes subscriptions cron-friendly and keeper-friendly — no privileged billing backend required.
+
+---
+
+### RemittanceVault
+
+**Address:** [0x1A3c1901449C8aEF0c5e23a68d68F910EE607875](https://testnet.arcscan.app/address/0x1A3c1901449C8aEF0c5e23a68d68F910EE607875)  
+**Source:** [RemittanceVault.sol](contracts/RemittanceVault.sol)
+
+RemittanceVault supports **one-off on-chain remittance sends** — an alternative to the Circle Wallets Path A flow. Senders call `sendRemittance(recipient, amount, destinationChainId, routingMethod, attestationHash)` which deducts a protocol fee (`feeBps`, default configurable) to a treasury address and routes the remainder via CrossChainRouter for cross-chain delivery or direct transfer for Arc-local.
+
+Each remittance is stored in a `Remittance` struct with sender, recipient, amount, fee, destination, routing method, attestation hash, and completion flag. This contract is used in integration tests and as a programmatic send primitive; the primary consumer remittance UI uses Circle Wallets (Path A) instead.
+
+---
+
+### FXSettlementEscrow
+
+**Address:** [0xE02800F2BEAC8675EbBd7d23F795C62288085987](https://testnet.arcscan.app/address/0xE02800F2BEAC8675EbBd7d23F795C62288085987)  
+**Source:** [FXSettlementEscrow.sol](contracts/FXSettlementEscrow.sol)
+
+FXSettlementEscrow is a **thin payment-vs-payment (PvP) registry** — it does not custody USDC. When a remittance involves a StableFX trade, the off-chain orchestrator calls `open(remittanceRef, stableFxTradeId, payer, usdcAmount)` to record both legs. As the FX trade and payout complete, the orchestrator calls `confirmFxOnChain()` and `confirmPayoutOnChain()` with respective tx hashes.
+
+This enables auditable linking between a StableFX conversion and a remittance payout without the contract holding funds. Circle's FxEscrow + Permit2 handle the actual FX settlement on-chain; this contract is the coordination ledger.
+
+---
+
+### Tokens and CCTP infrastructure
 
 | Token | Address | Decimals |
 |-------|---------|----------|
-| USDC (native on Arc) | `0x3600000000000000000000000000000000000000` | 6 |
-| EURC | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` | 6 |
+| USDC (native on Arc) | [0x3600...0000](https://testnet.arcscan.app/address/0x3600000000000000000000000000000000000000) | 6 |
+| EURC | [0x89B5...D72a](https://testnet.arcscan.app/address/0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a) | 6 |
 
-### CCTP infrastructure
-
-| Item | Address |
-|------|---------|
-| TokenMessenger V2 | `0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA` |
+| Item | Value |
+|------|-------|
+| CCTP TokenMessenger V2 | [0x8FE6...2DAA](https://testnet.arcscan.app/address/0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA) |
 | Arc CCTP domain | `26` |
 
 ### CCTP destination domain mapping
@@ -1109,14 +1675,14 @@ All production contracts are deployed on Arc testnet. Solidity version: **0.8.30
 | `3` | `421614` | Arbitrum Sepolia | `Arbitrum_Sepolia` |
 | `6` | `84532` | Base Sepolia | `Base_Sepolia` |
 
+Source: [cctp-domains.ts](config/cctp-domains.ts)
+
 ### Interface contracts
 
-| File | Purpose |
-|------|---------|
-| `contracts/interfaces/IERC20.sol` | Token transfer interface |
-| `contracts/interfaces/ICrossChainRouter.sol` | Router interface for vaults |
-| `contracts/interfaces/IPayrollScheduler.sol` | Scheduler interface |
-| `contracts/interfaces/ITokenMessengerV2.sol` | CCTP TokenMessenger interface |
+- [IERC20.sol](contracts/interfaces/IERC20.sol) — token transfer interface
+- [ICrossChainRouter.sol](contracts/interfaces/ICrossChainRouter.sol) — router interface for vaults
+- [IPayrollScheduler.sol](contracts/interfaces/IPayrollScheduler.sol) — scheduler interface
+- [ITokenMessengerV2.sol](contracts/interfaces/ITokenMessengerV2.sol) — CCTP TokenMessenger interface
 
 ---
 
@@ -1461,284 +2027,34 @@ npm run test:bank-mock-fund
 
 ---
 
+## Roadmap
+
+Arcittance is demo-ready on Arc testnet. The items below are a realistic next phase — building on what already works rather than replacing the core architecture.
+
+### Near term (testnet → production readiness)
+
+- **Mainnet deployment** — Redeploy and verify contracts on Arc mainnet; pin addresses, run full smoke and live verification suites.
+- **Path B wire rail** — Swap B_MOCK for real Mint wire on-ramp once Circle restores sandbox `POST /v1/businessAccount/banks/wires` (see [Feedback for Circle Team](#feedback-for-circle-team)).
+- **Keeper mode hardening** — Gate all batch-charge UI behind `NEXT_PUBLIC_USE_CIRCLE_KEEPER`; add server-side env checks on keeper API routes; document Gas Station policy setup in Circle Console.
+
+### Integrations and scale
+
+- **More CCTP / Gateway destinations** — Extend `CrossChainRouter` and remittance routing.
+- **EURC cross-chain** — Enable EURC delivery via CCTP/Gateway when Circle supports it (today EURC is Arc-local only).
+
+---
+
 ## Conclusion
 
-Arcittance demonstrates **programmable stablecoin payments** on Circle's Arc L1 — four composable primitives sharing native USDC/EURC settlement, deep Circle integration, and live leg-by-leg tracking.
+Arcittance set out to prove that a single stack on Circle's Arc L1 could replace the fragmented tooling that still governs global money movement — and on testnet, it largely does. Four on-chain primitives share one settlement layer: employers run **payroll** through factory-deployed vaults; freelancers lock funds in **milestone escrow** with N-of-M approver release; SaaS and marketplaces bill via **subscriptions** with subscriber-controlled spending caps; and consumers send **remittance** over crypto-native, bank-intent, or AED mock-bank rails. All of it settles in native USDC and EURC, with gas paid in USDC and no wrapped tokens.
 
-### What we built
+What makes this more than a contract demo is the depth of Circle integration. **User Wallets** power Path A sign-in and embedded-wallet sends. **StableFX** provides live USDC↔EURC quotes with on-chain settlement. **Bridge Kit** and **Gateway** complete cross-chain payroll and remittance to Avalanche, Arbitrum, and Base. **Payins** and **Payouts** drive the AED corridor and crypto delivery legs. **Developer Controlled Wallets** with Gas Station sponsorship enable optional keeper-mode payroll, milestone creation, and subscription charges — so operators can run flows without every user holding Arc gas. Off-chain orchestrators in `circle/src/` finish the legs that contracts cannot: CCTP burns, unified-balance spends, FX debits, and Payins settlement waits. Supabase persists remittance rows, FX quotes, mint ledger entries, and downloadable PDF receipts.
 
-- **Payroll** with org factory pattern, cross-chain CCTP/Gateway delivery, and optional Circle Keeper gas sponsorship
-- **Milestone escrow** with N-of-M approver governance and dispute reclaim
-- **Subscriptions** with subscriber-controlled spending caps and batch marketplace billing
-- **Dual-rail remittance** — crypto-native Path A, bank-intent Path B, and AED corridor B_MOCK workaround
+The remittance story is deliberately dual-rail. **Path A** is fully crypto-native: sign in, optionally convert via StableFX, send locally on Arc or cross-chain via CCTP/Gateway, track every leg, download a receipt. **Path B** is the fiat-on-ramp vision — sender bank wire → Mint credit → on-chain USDC → Payouts or fiat wire out — blocked today only at sandbox wire-bank create (`eft-sandbox-eft`). **Path B · Bank-mock** fills that gap honestly: AED sender bank → live FX → Payins top-up → Payouts delivery → recipient bank UX, reusing the same ledger and delivery stack Path B was designed for. We documented the sandbox failure in [Feedback for Circle Team](#feedback-for-circle-team) rather than hiding it.
 
-### Demo readiness
+For judges and developers reviewing this repo: the live app is at [arcittance.vercel.app](https://arcittance.vercel.app/). Contracts are deployed and verifiable on [Arcscan](https://testnet.arcscan.app). Suggested starting points — Path A remittance (Circle sign-in → cross-chain send), payroll (create org → fund vault → pay an employee), milestones (create → approve → release), or the B_MOCK AED corridor (Fund → auto-payout → Track). Each flow runs in minutes on testnet with a funded wallet. The codebase is a monorepo with a testable `circle/` SDK layer, Hardhat contracts, and a Next.js frontend — clone, configure env, and run locally using [How to Setup the Project](#how-to-setup-the-project).
 
-| Asset | Link |
-|-------|------|
-| Live app | [arcittance.vercel.app](https://arcittance.vercel.app/) |
-| GitHub | [github.com/Marshal-AM/arcittance](https://github.com/Marshal-AM/arcittance) |
-| Arc explorer | [testnet.arcscan.app](https://testnet.arcscan.app) |
-| Demo video | TBD |
-| Pitch deck | TBD |
-
-Path A remittance and B_MOCK corridor are fully demoable. Path B wire rail awaits Circle sandbox fix.
-
-### Future work
-
-- Complete Path B when `POST /v1/businessAccount/banks/wires` is restored in sandbox
-- Mainnet deployment on Arc
-- Additional fiat corridors beyond AED mock
-- Expanded compliance / Travel Rule fields
-
----
-
-## Appendix A — API Route Index
-
-All routes under `frontend/app/api/`. Server routes call `loadServerEnv()` to read root `.env`.
-
-### Payroll and organisations
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| GET | `/api/organizations` | List orgs by creator |
-| GET | `/api/payroll` | List employees for a vault |
-
-### Cross-chain
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| POST | `/api/cross-chain/orchestrate` | Post-payroll CCTP completion |
-| GET | `/api/cross-chain/estimate-fee` | CCTP fee estimate |
-
-### Circle keeper
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| POST | `/api/circle/keeper/run-payroll` | Gasless payroll run |
-| POST | `/api/circle/keeper/batch-payroll` | Batch register + payroll |
-| POST | `/api/circle/keeper/create-milestone` | Gasless milestone create |
-| POST | `/api/circle/keeper/approve-milestone` | Keeper approve (if enabled) |
-| POST | `/api/circle/keeper/charge` | Gasless subscription charge |
-
-### Circle user wallets
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| POST | `/api/circle/user/initialize` | Initialize user session |
-| POST | `/api/circle/user/request-otp` | Request email OTP |
-| POST | `/api/circle/user/session` | Acquire session token |
-| GET | `/api/circle/user/wallet` | Get user wallet |
-| GET | `/api/circle/user/wallets` | List user wallets |
-| POST | `/api/circle/user/resolve-handle` | Resolve user handle |
-
-### Circle remittance
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| POST | `/api/circle/remit/send` | Path A Arc-local send |
-| POST | `/api/circle/remit/cross-chain` | Path A CCTP/Gateway send |
-| POST | `/api/circle/compliance/screen` | Address blocklist check |
-
-### FX / StableFX
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| POST | `/api/fx/quotes` | Request StableFX quote |
-| POST | `/api/fx/execute` | NDJSON StableFX settlement stream |
-| POST | `/api/fx/path-a/prepare-debit` | Wallet → facilitator debit challenge |
-| POST | `/api/fx/path-a/wait-debit` | Confirm debit before FX |
-| POST | `/api/fx/rebalance` | Institutional facilitator rebalance |
-| POST | `/api/fx/confirm-payout` | Deprecated (410) |
-
-### Remittance funding and delivery
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| GET | `/api/remit/wallet/balance` | Path A embedded wallet balance |
-| POST | `/api/remit/bank/fund` | Path B wire fund |
-| GET | `/api/remit/bank/fund` | Path B fund status |
-| POST | `/api/remit/bank-mock/fund` | B_MOCK AED fund |
-| GET | `/api/remit/bank-mock/quote` | B_MOCK AED/USD rate |
-| POST | `/api/remit/payins` | Create Payins intent |
-| GET | `/api/remit/payins/[id]` | Poll payin status |
-| POST | `/api/remit/payouts` | Create Circle Payout |
-| GET | `/api/remit/payouts/[id]` | Poll payout status |
-| POST | `/api/remit/recipients` | Register Address Book recipient |
-| GET | `/api/remit/recipients` | List recipients |
-| POST | `/api/remit/fiat/payout` | Path B fiat wire payout |
-| GET | `/api/remit/custody/balance` | Mint custody balance |
-
-### Remittances and receipts
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| GET/POST | `/api/remittances` | List/create remittances |
-| POST | `/api/remittances/[id]/confirm` | Confirm remittance leg |
-| GET | `/api/remittances/[id]/receipt` | Download PDF/JSON receipt |
-
-### Milestones and subscriptions metadata
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| GET | `/api/milestones` | List milestones |
-| POST | `/api/milestones/metadata` | Save milestone title/description |
-| GET | `/api/subscriptions` | List plans + subscriptions |
-| POST | `/api/subscriptions/plan-metadata` | Save plan title/description |
-
-### Webhooks
-
-| Method | Route | Purpose |
-|--------|-------|---------|
-| POST | `/api/webhooks/circle/payin` | Circle Payins webhook handler |
-
----
-
-## Appendix B — Environment Variable Reference
-
-### Root `.env` — network and tokens
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ARC_NETWORK` | Yes | Must be `arc:testnet` |
-| `ARC_RPC_URL` | Yes | `https://rpc.testnet.arc.io` |
-| `ARC_WS_URL` | No | WebSocket RPC |
-| `ARC_CHAIN_ID` | Yes | `5042002` |
-| `USDC_CONTRACT_ADDRESS` | Yes | Native USDC on Arc |
-| `EURC_CONTRACT_ADDRESS` | Yes | EURC on Arc |
-
-### Root `.env` — persona private keys
-
-| Variable | Role |
-|----------|------|
-| `DEPLOYER_PRIVATE_KEY` | Contract deployer |
-| `KEEPER_PRIVATE_KEY` | Keeper mode executor |
-| `TREASURY_PRIVATE_KEY` | B_MOCK Payins top-up EOA |
-| `FACILITATOR_PRIVATE_KEY` | CCTP/StableFX facilitator EOA |
-| `EMPLOYER_DEMO_PRIVATE_KEY` | Payroll demo employer |
-| `REMIT_SENDER_DEMO_PRIVATE_KEY` | Remittance sender demo |
-| `RECIPIENT_DEMO_PRIVATE_KEY` | Payout recipient demo |
-
-### Root `.env` — Circle APIs
-
-| Variable | Purpose |
-|----------|---------|
-| `CIRCLE_API_KEY` | Developer Controlled Wallets |
-| `CIRCLE_WALLETS_ENTITY_SECRET` | W3S entity secret |
-| `CIRCLE_WALLETS_APP_ID` | W3S app ID (server) |
-| `CIRCLE_FACILITATOR_WALLET_ID` | Facilitator SCA wallet ID |
-| `CIRCLE_STABLEFX_API_KEY` | StableFX sandbox API |
-| `CIRCLE_MINT_API_KEY` | Mint / Payins / Payouts / Custody |
-| `CIRCLE_GATEWAY_API_KEY` | Gateway unified balance |
-| `CIRCLE_CCTP_BRIDGEKIT_CONFIG` | JSON with `arcDomain: 26` |
-| `STABLEFX_API_BASE_URL` | `https://api-sandbox.circle.com` |
-| `CIRCLE_COMPLIANCE_BLOCKLIST` | Comma-separated blocked addresses |
-
-### Root `.env` — Supabase
-
-| Variable | Purpose |
-|----------|---------|
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side DB access |
-| `SUPABASE_DB_URL` | Direct Postgres URL (optional, for auto-migrate) |
-
-### Root `.env` — contract addresses
-
-| Variable | Contract |
-|----------|----------|
-| `NEXT_PUBLIC_PAYROLL_ORG_REGISTRY_ADDRESS` | PayrollOrgRegistry |
-| `NEXT_PUBLIC_CONDITIONAL_ESCROW_ADDRESS` | ConditionalEscrow |
-| `NEXT_PUBLIC_SUBSCRIPTION_MANAGER_ADDRESS` | SubscriptionManager |
-| `NEXT_PUBLIC_REMITTANCE_VAULT_ADDRESS` | RemittanceVault |
-| `NEXT_PUBLIC_CROSS_CHAIN_ROUTER_ADDRESS` | CrossChainRouter |
-| `NEXT_PUBLIC_FX_SETTLEMENT_ESCROW_ADDRESS` | FXSettlementEscrow |
-
-### Frontend `frontend/.env.local` — public vars
-
-| Variable | Purpose |
-|----------|---------|
-| `NEXT_PUBLIC_USDC_ADDRESS` | USDC token address |
-| `NEXT_PUBLIC_EURC_ADDRESS` | EURC token address |
-| `NEXT_PUBLIC_ARC_RPC_URL` | Public RPC for Wagmi |
-| `NEXT_PUBLIC_ARC_CHAIN_ID` | `5042002` |
-| `NEXT_PUBLIC_CIRCLE_APP_ID` | W3S Web SDK app ID |
-| `NEXT_PUBLIC_USE_CIRCLE_KEEPER` | `true` / `false` |
-| All `NEXT_PUBLIC_*_ADDRESS` vars | Contract addresses (same as root) |
-
----
-
-## Appendix C — Testing and Verification Commands
-
-From root `package.json`:
-
-### Core
-
-| Command | Description |
-|---------|-------------|
-| `npm run compile` | Compile Solidity contracts |
-| `npm test` | Hardhat unit tests |
-| `npm run test:gas` | Unit tests with gas report |
-
-### Deploy and configure
-
-| Command | Description |
-|---------|-------------|
-| `npm run deploy:arc` | Deploy contracts to Arc testnet |
-| `npm run configure:cross-chain` | Configure CrossChainRouter |
-| `npm run configure:circle-wallets` | Provision facilitator wallet |
-| `npm run provision:accounts` | Derive persona addresses from keys |
-| `npm run db:migrate` | Apply Supabase migrations |
-
-### Smoke and live verification
-
-| Command | Description |
-|---------|-------------|
-| `npm run arc:smoke` | Arc connectivity smoke test |
-| `npm run verify:live` | Full live verification (keeper, CCTP, wallets) |
-| `npm run verify:gas-sponsorship` | Verify gas sponsorship config |
-
-### Integration tests (Arc testnet)
-
-| Command | Description |
-|---------|-------------|
-| `npm run test:integration` | Full integration suite on Arc testnet |
-
-Individual integration test files:
-
-| File | Covers |
-|------|--------|
-| `test/integration/arc-payroll-usdc.test.ts` | Payroll USDC flows |
-| `test/integration/arc-cctp-payroll.test.ts` | CCTP cross-chain payroll |
-| `test/integration/arc-gateway-unified.test.ts` | Gateway unified balance |
-| `test/integration/arc-remittance-receipt.test.ts` | Remittance receipts |
-| `test/integration/arc-batch-marketplace.test.ts` | Batch marketplace billing |
-| `test/integration/arc-stablefx-remittance.test.ts` | StableFX remittance |
-
-### Circle and remittance probes
-
-| Command | Description |
-|---------|-------------|
-| `npm run test:circle` | Circle package Jest tests |
-| `npm run test:remittance` | Live remittance send test |
-| `npm run test:cross-chain-cctp` | CCTP bridge probe |
-| `npm run test:cctp-bridge` | CCTP bridge kit test |
-| `npm run test:gateway-unified` | Gateway deposit + spend |
-| `npm run test:circle-keeper` | Keeper payroll on Arc |
-| `npm run test:stablefx-quote` | StableFX quote probe |
-| `npm run test:mint-bank-rail` | Path B bank rail smoke (fails at wire create) |
-| `npm run test:mint-wire-variants` | Wire-bank create matrix probe |
-| `npm run test:bank-mock-fund` | B_MOCK fund smoke test |
-| `npm run provision:remit-user` | Provision remittance test user |
-
-### Frontend tests
-
-```bash
-cd frontend
-npm test          # Jest unit tests
-npm run lint      # ESLint
-```
-
-Cypress E2E tests in `frontend/cypress/e2e/` cover navigation, payroll, and full remittance flows.
+Arc is not merely a chain that lists USDC — it is a settlement layer where payment rules, cross-chain routing, and FX can be composed in one application. Arcittance is our working proof on testnet. The [Roadmap](#roadmap) covers mainnet deployment, restoring Path B's wire rail, keeper hardening, and expanding chain and EURC support. The primitives, integrations, and architecture are built; what remains is production hardening and the fiat rails Circle already documents — once sandbox wire-bank create is restored.
 
 
 
