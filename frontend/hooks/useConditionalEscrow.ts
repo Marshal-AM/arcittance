@@ -6,7 +6,6 @@ import { useState, useCallback } from "react";
 import { CONDITIONAL_ESCROW_ABI, ERC20_ABI } from "@/lib/contracts/abis";
 import { getContractAddresses } from "@/lib/contracts/addresses";
 import type { TxStatus } from "@/lib/types";
-import { isCircleKeeperEnabled, useCircleKeeperCreateMilestone } from "./useCircleKeeper";
 
 let _escrowAddress: `0x${string}` | null = null;
 function escrowAddress() {
@@ -30,7 +29,6 @@ export function useMilestoneCount() {
 export function useCreateMilestone() {
   const { writeContractAsync }  = useWriteContract();
   const publicClient            = usePublicClient();
-  const keeperCreate            = useCircleKeeperCreateMilestone();
   const [txStatus, setTxStatus] = useState<TxStatus>({ status: "idle" });
 
   const createMilestone = useCallback(async (params: {
@@ -43,32 +41,9 @@ export function useCreateMilestone() {
   }) => {
     setTxStatus({ status: "pending" });
     try {
-      if (isCircleKeeperEnabled()) {
-        const result = await keeperCreate({
-          payee:             params.payee,
-          token:             params.token,
-          amount:            params.amount.toString(),
-          approvers:         params.approvers,
-          approvalsRequired: params.approvalsRequired.toString(),
-          disputeDeadline:   params.disputeDeadline.toString(),
-        });
-        setTxStatus(result);
-        if (result.status === "error") throw new Error(result.error);
-        if (result.status === "idle") throw new Error("Keeper create did not run");
-        if (!result.hash) throw new Error("Keeper create returned no hash");
-        // Best-effort id: latest count − 1 after keeper settles
-        let onChainId = "0";
-        if (publicClient) {
-          const count = (await publicClient.readContract({
-            address: escrowAddress(),
-            abi: CONDITIONAL_ESCROW_ABI,
-            functionName: "milestoneCount",
-          })) as bigint;
-          if (count > 0n) onChainId = String(count - 1n);
-        }
-        return { hash: result.hash as `0x${string}`, onChainId };
-      }
-
+      // Always use the connected wallet — on-chain payer must be msg.sender so
+      // reclaimExpired works for the user who locked funds. Keeper create would
+      // set payer to the Circle facilitator wallet instead.
       if (!publicClient) throw new Error("No public client");
       // Step 1: approve escrow contract on ERC-20 precompile
       const approveTxHash = await writeContractAsync({
@@ -116,7 +91,7 @@ export function useCreateMilestone() {
       setTxStatus({ status: "error", error: err.shortMessage ?? err.message });
       throw err;
     }
-  }, [writeContractAsync, publicClient, keeperCreate]);
+  }, [writeContractAsync, publicClient]);
 
   return { createMilestone, txStatus };
 }

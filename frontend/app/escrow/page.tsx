@@ -98,10 +98,10 @@ export default function EscrowPage() {
       {isCircleKeeperEnabled() && (
         <div className="rounded-xl border px-4 py-3 text-xs text-[var(--text-secondary)]"
              style={{ borderColor: "var(--border-subtle)", background: "var(--bg-card)" }}>
-          <strong className="text-[var(--text-primary)]">Keeper mode:</strong> milestone creation
-          may use the Circle facilitator wallet.{" "}
-          <strong className="text-[var(--text-primary)]">Approve & Release</strong> always requires
-          your connected wallet to sign — only listed approvers can release funds to the payee.
+          <strong className="text-[var(--text-primary)]">Keeper mode:</strong> used for payroll
+          and subscriptions only.{" "}
+          <strong className="text-[var(--text-primary)]">Milestone create, approve, and reclaim</strong>{" "}
+          always use your connected wallet — you must be the on-chain payer to reclaim after the deadline.
         </div>
       )}
 

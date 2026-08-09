@@ -47,10 +47,14 @@ export function MilestoneCard({
   const canReclaim =
     isPayer &&
     (status === "expired" || (status === "active" && isPastDeadline));
+  // After deadline only the payer may reclaim — approvers cannot release post-expiry.
   const canApprove =
-    isApprover && (status === "active" || status === "expired");
-  const showActions = canApprove || canReclaim;
+    isApprover && status === "active" && !isPastDeadline;
+  const payerShort = `${payer.slice(0, 8)}…${payer.slice(-4)}`;
   const payeeShort = `${payee.slice(0, 8)}…${payee.slice(-4)}`;
+  const expiredUnsettled =
+    status === "expired" || (status === "active" && isPastDeadline);
+  const showActions = canApprove || canReclaim;
 
   const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
     active:    { bg: "rgba(59,130,246,0.1)",  text: "var(--info)",    label: "Active"    },
@@ -153,16 +157,37 @@ export function MilestoneCard({
 
       {settlementNote && (status === "active" || status === "expired") && (
         <div className="rounded-xl px-3 py-2.5 text-xs"
-             style={{ background: "rgba(34,197,94,0.1)", color: "var(--success)" }}>
+             style={{
+               background: settlementNote.includes("reclaimed")
+                 ? "rgba(239,68,68,0.1)"
+                 : "rgba(34,197,94,0.1)",
+               color: settlementNote.includes("reclaimed")
+                 ? "var(--error)"
+                 : "var(--success)",
+             }}>
           ✓ {settlementNote}
         </div>
       )}
 
-      {status === "expired" && (
+      {expiredUnsettled && (
         <div className="rounded-xl px-3 py-2.5 text-xs"
              style={{ background: "rgba(245,158,11,0.1)", color: "var(--warning)" }}>
-          Deadline passed — payer can reclaim locked funds
-          {!isPayer ? " (connect as the payer wallet to reclaim)." : "."}
+          {canReclaim ? (
+            <>Deadline passed — use <strong>Reclaim</strong> below to return funds to your wallet.</>
+          ) : isApprover && !isPayer ? (
+            <>
+              Deadline passed. Only the payer{" "}
+              <span className="font-mono">{payerShort}</span> can reclaim — you are an approver,
+              not the wallet that locked funds. Connect as payer to reclaim; do not use Approve
+              after the deadline.
+            </>
+          ) : (
+            <>
+              Deadline passed — payer{" "}
+              <span className="font-mono">{payerShort}</span> can reclaim locked funds
+              {!isPayer ? " (connect that wallet)." : "."}
+            </>
+          )}
         </div>
       )}
 

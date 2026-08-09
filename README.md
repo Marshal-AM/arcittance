@@ -77,7 +77,7 @@ Source of truth: [`deployments/arc/addresses.json`](deployments/arc/addresses.js
   - [Security properties](#security-properties)
   - [Split storage model](#split-storage-model)
   - [Full milestone flow (step-by-step)](#full-milestone-flow-step-by-step)
-  - [Keeper-assisted creation](#keeper-assisted-creation)
+  - [Payer identity and reclaim](#payer-identity-and-reclaim)
   - [Indexer events](#indexer-events)
   - [Key files](#key-files)
 - [Subscriptions](#subscriptions)
@@ -546,7 +546,6 @@ flowchart TB
   subgraph api [Next.js API]
     ListAPI[milestones/route.ts]
     MetaAPI[milestones/metadata/route.ts]
-    KeeperAPI[keeper/create-milestone]
   end
 
   subgraph persist [Supabase]
@@ -563,7 +562,6 @@ flowchart TB
   EscrowPage --> MetaAPI --> MetaTable
   EscrowPage --> ListAPI
   ListAPI -->|getMilestone plus merge metadata| Escrow
-  KeeperAPI -->|optional gasless create| Escrow
   Escrow -->|lock on create| USDC
   Escrow -->|release on N approvals| USDC
   MilestoneCard -->|approve or reclaim| Escrow
@@ -640,9 +638,10 @@ Each milestone is stored in the `Milestone` struct in [ConditionalEscrow.sol](co
 
 - **ReentrancyGuard** — all state-changing functions are non-reentrant
 - **Immutable approvers** — approver list cannot be modified after creation
-- **No keeper on approve/reclaim** — approvers and payers must sign with their own wallets; the Circle keeper cannot approve or reclaim on anyone's behalf
+- **Connected-wallet create** — `createMilestone` always runs from the user's MetaMask/wagmi wallet so on-chain `payer` is the wallet that locked funds (required for `reclaimExpired`)
+- **No keeper on create/approve/reclaim** — Circle keeper mode does not create milestones; approvers and payers must sign with their own wallets
 - **Double-approval prevention** — `hasApproved` mapping reverts if the same approver tries twice
-- **Deadline enforcement** — reclaim only succeeds after `block.timestamp > disputeDeadline` and milestone is not already released
+- **Deadline enforcement** — reclaim only succeeds after `block.timestamp > disputeDeadline` and milestone is not already released; the UI hides **Approve & Release** after the deadline so only the payer can **Reclaim**
 
 ### Split storage model
 
@@ -667,14 +666,19 @@ The list API ([milestones/route.ts](frontend/app/api/milestones/route.ts)) reads
 8. When `approvalCount >= approvalsRequired` → contract auto-transfers USDC to payee; `MilestoneReleased` event emitted
 9. If deadline passes without release → payer calls `reclaimExpired(id)`; USDC returned; `MilestoneReclaimed` event emitted
 
-### Keeper-assisted creation
+### Payer identity and reclaim
 
-Optional gasless path for milestone **creation only** (not approve or reclaim):
+Milestone create always uses the **connected wallet**, even when `NEXT_PUBLIC_USE_CIRCLE_KEEPER=true` (keeper remains available for payroll and subscription charges only).
 
-- [`POST /api/circle/keeper/create-milestone`](frontend/app/api/circle/keeper/create-milestone/route.ts) — facilitator Developer Controlled Wallet approves USDC + creates milestone
-- Enabled when `NEXT_PUBLIC_USE_CIRCLE_KEEPER=true`
-- Useful for demos where the payer should not pay gas
-- **Approve, release, and reclaim always require the relevant party's wallet signature**
+Why: `reclaimExpired(id)` requires `msg.sender == milestone.payer`. If a Circle facilitator wallet created the milestone, the on-chain payer would be the facilitator — the user's MetaMask would only appear as an approver, so after the deadline the UI would show **Approve & Release** (send to payee) instead of **Reclaim** (return to payer).
+
+| Action | Who signs | Notes |
+|--------|-----------|-------|
+| Create + lock | Connected wallet | Becomes on-chain `payer` |
+| Approve & release | Listed approver wallet | Hidden in UI after `disputeDeadline` |
+| Reclaim | On-chain payer wallet | Shown only when connected address matches `payer` and deadline has passed |
+
+The API route [`POST /api/circle/keeper/create-milestone`](frontend/app/api/circle/keeper/create-milestone/route.ts) still exists for scripts/tests, but the escrow UI and [`useConditionalEscrow.ts`](frontend/hooks/useConditionalEscrow.ts) do not call it.
 
 ### Indexer events
 
@@ -695,7 +699,6 @@ Optional gasless path for milestone **creation only** (not approve or reclaim):
 | Contract hooks | [useConditionalEscrow.ts](frontend/hooks/useConditionalEscrow.ts) |
 | List API | [milestones/route.ts](frontend/app/api/milestones/route.ts) |
 | Metadata API | [milestones/metadata/route.ts](frontend/app/api/milestones/metadata/route.ts) |
-| Keeper create | [keeper/create-milestone/route.ts](frontend/app/api/circle/keeper/create-milestone/route.ts) |
 
 ---
 
@@ -1408,7 +1411,7 @@ Arcittance integrates **every major Circle product** relevant to programmable st
 | Circle Product | SDK / Package | Client file | Used in | Purpose |
 |----------------|---------------|-------------|---------|---------|
 | User Wallets (W3S) | `@circle-fin/w3s-pw-web-sdk` | `user-client.ts` | Remit Path A | Sign-in, OTP, embedded wallet, transfers, balance |
-| Developer Controlled Wallets | `@circle-fin/developer-controlled-wallets` | `developer-client.ts` | Payroll keeper, milestone create, subscription charge, Gateway SCA | Gasless contract calls, facilitator smart contract account |
+| Developer Controlled Wallets | `@circle-fin/developer-controlled-wallets` | `developer-client.ts` | Payroll keeper, subscription charge, Gateway SCA | Gasless contract calls, facilitator smart contract account |
 | Gas Station | Circle Wallets API | `gas-station.ts` | Keeper executions | Transaction fee sponsorship |
 | Bridge Kit (CCTP) | `@circle-fin/bridge-kit` | `cctp-client.ts` | Payroll cross-chain, Remit Path A | USDC burn/mint across CCTP domains |
 | Unified Balance Kit (Gateway) | `@circle-fin/unified-balance-kit` | `gateway-client.ts` | Payroll, Remit Path A | Instant cross-chain spend from unified balance |
@@ -1433,7 +1436,8 @@ Arcittance integrates **every major Circle product** relevant to programmable st
 
 #### Developer Controlled Wallets
 
-- Facilitator SCA executes: `runPayroll()`, `createMilestone()`, `charge()` with gas sponsorship
+- Facilitator SCA executes: `runPayroll()`, `charge()` with gas sponsorship (payroll and subscriptions)
+- Milestone create/approve/reclaim always use the user's connected wallet — not the facilitator
 - Gateway routing debits user wallet to facilitator SCA before unified-balance spend
 - Files: `circle/src/developer-client.ts`, `frontend/app/api/circle/keeper/*`
 
@@ -1512,8 +1516,7 @@ Arcittance integrates **every major Circle product** relevant to programmable st
 | Payroll (Arc-local) | None required |
 | Payroll (cross-chain) | CCTP + Bridge Kit, Gateway + Unified Balance Kit |
 | Payroll (keeper mode) | Developer Controlled Wallets + Gas Station |
-| Milestones (create) | Developer Controlled Wallets (optional keeper) |
-| Milestones (approve/release) | None — pure on-chain |
+| Milestones (create / approve / reclaim) | None — connected wallet only (pure on-chain) |
 | Subscriptions (charge) | Developer Controlled Wallets (optional keeper) |
 | Remit Path A | User Wallets, StableFX, CCTP, Gateway, Compliance |
 | Remit Path B | Mint (wire + mint + payout), StableFX, Payouts, Custody |
@@ -1744,7 +1747,7 @@ We built **Path B · Bank-mock** as a workaround: fake AED bank UX + treasury Pa
 |---------|----------------|
 | Arc L1 + native USDC gas | Seamless — no wrapped tokens |
 | User Wallets (W3S) | Sign-in, embedded wallet, transfer challenges all solid |
-| Developer Controlled Wallets + Gas Station | Keeper payroll/milestone/subscription charges worked |
+| Developer Controlled Wallets + Gas Station | Keeper payroll and subscription charges worked |
 | StableFX | Live sandbox quotes and Permit2 settle worked |
 | Bridge Kit (CCTP) | Cross-chain payroll and remittance burns/mints worked |
 | Gateway (Unified Balance) | Deposit + spend path worked |
@@ -1838,7 +1841,7 @@ Server-only keys in root `.env` are loaded by API routes via `loadServerEnv()` i
 | **Remit Path A** | + Circle User Wallets app ID, API keys, facilitator keys | Crypto remittance, StableFX, CCTP, Gateway |
 | **Remit B_MOCK** | + `TREASURY_PRIVATE_KEY` funded with Arc USDC, Mint/Payins keys | AED corridor mock demo |
 | **Remit Path B** | + Mint keys, allowlisted facilitator | Wire rail (**blocked in sandbox** — see Feedback) |
-| **Keeper mode** | + `CIRCLE_FACILITATOR_WALLET_ID`, `NEXT_PUBLIC_USE_CIRCLE_KEEPER=true` | Gasless payroll/milestone/subscription |
+| **Keeper mode** | + `CIRCLE_FACILITATOR_WALLET_ID`, `NEXT_PUBLIC_USE_CIRCLE_KEEPER=true` | Gasless payroll / subscription charge (not milestones) |
 
 ### Wallet Provisioning and Faucet
 
@@ -2048,7 +2051,7 @@ Arcittance is demo-ready on Arc testnet. The items below are a realistic next ph
 
 Arcittance set out to prove that a single stack on Circle's Arc L1 could replace the fragmented tooling that still governs global money movement — and on testnet, it largely does. Four on-chain primitives share one settlement layer: employers run **payroll** through factory-deployed vaults; freelancers lock funds in **milestone escrow** with N-of-M approver release; SaaS and marketplaces bill via **subscriptions** with subscriber-controlled spending caps; and consumers send **remittance** over crypto-native, bank-intent, or AED mock-bank rails. All of it settles in native USDC and EURC, with gas paid in USDC and no wrapped tokens.
 
-What makes this more than a contract demo is the depth of Circle integration. **User Wallets** power Path A sign-in and embedded-wallet sends. **StableFX** provides live USDC↔EURC quotes with on-chain settlement. **Bridge Kit** and **Gateway** complete cross-chain payroll and remittance to Avalanche, Arbitrum, and Base. **Payins** and **Payouts** drive the AED corridor and crypto delivery legs. **Developer Controlled Wallets** with Gas Station sponsorship enable optional keeper-mode payroll, milestone creation, and subscription charges — so operators can run flows without every user holding Arc gas. Off-chain orchestrators in `circle/src/` finish the legs that contracts cannot: CCTP burns, unified-balance spends, FX debits, and Payins settlement waits. Supabase persists remittance rows, FX quotes, mint ledger entries, and downloadable PDF receipts.
+What makes this more than a contract demo is the depth of Circle integration. **User Wallets** power Path A sign-in and embedded-wallet sends. **StableFX** provides live USDC↔EURC quotes with on-chain settlement. **Bridge Kit** and **Gateway** complete cross-chain payroll and remittance to Avalanche, Arbitrum, and Base. **Payins** and **Payouts** drive the AED corridor and crypto delivery legs. **Developer Controlled Wallets** with Gas Station sponsorship enable optional keeper-mode payroll and subscription charges — so operators can run those flows without every user holding Arc gas. Milestone create, approve, and reclaim always use the connected wallet so the on-chain payer can reclaim after a deadline. Off-chain orchestrators in `circle/src/` finish the legs that contracts cannot: CCTP burns, unified-balance spends, FX debits, and Payins settlement waits. Supabase persists remittance rows, FX quotes, mint ledger entries, and downloadable PDF receipts.
 
 The remittance story is deliberately dual-rail. **Path A** is fully crypto-native: sign in, optionally convert via StableFX, send locally on Arc or cross-chain via CCTP/Gateway, track every leg, download a receipt. **Path B** is the fiat-on-ramp vision — sender bank wire → Mint credit → on-chain USDC → Payouts or fiat wire out — blocked today only at sandbox wire-bank create (`eft-sandbox-eft`). **Path B · Bank-mock** fills that gap honestly: AED sender bank → live FX → Payins top-up → Payouts delivery → recipient bank UX, reusing the same ledger and delivery stack Path B was designed for. We documented the sandbox failure in [Feedback for Circle Team](#feedback-for-circle-team) rather than hiding it.
 
